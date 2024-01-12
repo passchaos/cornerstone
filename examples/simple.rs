@@ -1,6 +1,12 @@
 use std::collections::HashMap;
 
-use cornerstone::{Context, ControlNode, DataProxy, NodeStatus, SequenceNode, TreeNode, RepeatNode};
+use cornerstone::{
+    node::{
+        control::{ControlNode, SequenceNode},
+        decorator::RepeatNode,
+    },
+    Context, DataProxy, NodeStatus, TreeNode,
+};
 
 #[derive(Clone, Debug)]
 struct Arm {
