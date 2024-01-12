@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "A behavior tree library"
-homepage = "https://passchaos.com"
-documentation = "https://passchaos.com"
+homepage = "https://github.com/passchaos/cornerstone"
+repository = "https://github.com/passchaos/cornerstone"
+documentation = "https://docs.rs/crate/cornerstone/latest"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
