@@ -4,11 +4,12 @@ use std::{
 };
 
 use cornerstone::{
-    node::control::{ControlNode, SequenceNode},
+    node::control::{ControlNode, ParallelNode, SequenceNode},
     Context, DataProxy, NodeStatus, TreeNode,
 };
 
 struct SleepNode {
+    name: String,
     end_ts: Instant,
     data_proxy: DataProxy,
 }
@@ -18,8 +19,11 @@ impl TreeNode for SleepNode {
         let current_ts = Instant::now();
 
         if current_ts <= self.end_ts {
+            println!("sleep: {}", self.name);
+
             NodeStatus::Running
         } else {
+            println!("finish: {}", self.name);
             NodeStatus::Success
         }
     }
@@ -28,13 +32,21 @@ impl TreeNode for SleepNode {
 fn main() {
     let mut ctx = Context::default();
 
-    let sleep_node = SleepNode {
+    let sleep_node_1 = SleepNode {
+        name: "alice".to_string(),
         end_ts: Instant::now() + Duration::from_secs(3),
         data_proxy: DataProxy::new(HashMap::new()),
     };
 
-    let mut root = SequenceNode::default();
-    root.add_child(Box::new(sleep_node));
+    let sleep_node_2 = SleepNode {
+        name: "bob".to_string(),
+        end_ts: Instant::now() + Duration::from_secs(5),
+        data_proxy: DataProxy::new(HashMap::new()),
+    };
+
+    let mut root = ParallelNode::new(Some(1), None);
+    root.add_child(Box::new(sleep_node_1));
+    root.add_child(Box::new(sleep_node_2));
 
     loop {
         let res = root.tick(&mut ctx);
