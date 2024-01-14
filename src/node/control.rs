@@ -116,3 +116,27 @@ impl TreeNode for ParallelNode {
         NodeStatus::Running
     }
 }
+
+pub struct SelectorNode {
+    handle: ControlNodeHandle,
+}
+
+impl ControlNode for SelectorNode {
+    fn add_child(&mut self, node: Box<dyn TreeNode>) {
+        self.handle.add_child(node);
+    }
+}
+
+impl TreeNode for SelectorNode {
+    fn tick(&mut self, ctx: &mut Context) -> NodeStatus {
+        for node in self.handle.child_nodes.iter_mut() {
+            match node.tick(ctx) {
+                NodeStatus::Success => return NodeStatus::Success,
+                NodeStatus::Running => return NodeStatus::Running,
+                NodeStatus::Failure => (),
+            }
+        }
+
+        NodeStatus::Failure
+    }
+}
