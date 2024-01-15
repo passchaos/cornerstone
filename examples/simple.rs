@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use cornerstone::{
     node::{
-        control::{ControlNode, SequenceNode},
-        decorator::RepeatNode,
+        control::{ControlNode, Sequence},
+        decorator::Repeat,
     },
     Context, DataProxy, NodeStatus, TreeNode,
 };
@@ -71,14 +71,14 @@ fn main() {
         },
     );
 
-    let mut seq_root = SequenceNode::default();
+    let mut seq_root = Sequence::default();
 
     let body = PrintBodyNode {
         data_proxy: DataProxy::new(HashMap::new()),
     };
     seq_root.add_child(Box::new(body));
 
-    let mut arms_root = SequenceNode::default();
+    let mut arms_root = Sequence::default();
 
     let mut left_ports = HashMap::new();
     left_ports.insert("arm".to_string(), "left_arm".to_string());
@@ -97,7 +97,7 @@ fn main() {
 
     seq_root.add_child(Box::new(arms_root));
 
-    let mut root = RepeatNode::new(5, Box::new(seq_root));
+    let mut root = Repeat::new(5, Box::new(seq_root));
 
     loop {
         let status = root.tick(&mut ctx);

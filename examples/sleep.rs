@@ -4,7 +4,7 @@ use std::{
 };
 
 use cornerstone::{
-    node::control::{ControlNode, ParallelNode, SequenceNode},
+    node::control::{ControlNode, Parallel, Sequence},
     Context, DataProxy, NodeStatus, TreeNode,
 };
 
@@ -44,7 +44,7 @@ fn main() {
         data_proxy: DataProxy::new(HashMap::new()),
     };
 
-    let mut root = ParallelNode::new(Some(1), None);
+    let mut root = Parallel::new(Some(1), None);
     root.add_child(Box::new(sleep_node_1));
     root.add_child(Box::new(sleep_node_2));
 

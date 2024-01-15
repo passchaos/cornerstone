@@ -19,11 +19,11 @@ impl DecoratorNode for DecoratorNodeHandle {
     }
 }
 
-pub struct ForceSuccessNode {
+pub struct ForceSuccess {
     handle: DecoratorNodeHandle,
 }
 
-impl TreeNode for ForceSuccessNode {
+impl TreeNode for ForceSuccess {
     fn tick(&mut self, ctx: &mut Context) -> NodeStatus {
         match self.handle.node.tick(ctx) {
             NodeStatus::Running => NodeStatus::Running,
@@ -32,7 +32,7 @@ impl TreeNode for ForceSuccessNode {
     }
 }
 
-impl DecoratorNode for ForceSuccessNode {
+impl DecoratorNode for ForceSuccess {
     fn new(node: Box<dyn TreeNode>) -> Self
     where
         Self: Sized,
@@ -43,12 +43,12 @@ impl DecoratorNode for ForceSuccessNode {
     }
 }
 
-pub struct RepeatNode {
+pub struct Repeat {
     count: usize,
     handle: DecoratorNodeHandle,
 }
 
-impl RepeatNode {
+impl Repeat {
     pub fn new(count: usize, node: Box<dyn TreeNode>) -> Self {
         Self {
             count,
@@ -57,7 +57,7 @@ impl RepeatNode {
     }
 }
 
-impl TreeNode for RepeatNode {
+impl TreeNode for Repeat {
     fn tick(&mut self, ctx: &mut Context) -> NodeStatus {
         if self.count == 0 {
             return NodeStatus::Success;

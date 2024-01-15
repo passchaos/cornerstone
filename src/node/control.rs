@@ -18,18 +18,18 @@ impl ControlNode for ControlNodeHandle {
 }
 
 #[derive(Default)]
-pub struct SequenceNode {
+pub struct Sequence {
     current_child_idx: usize,
     handle: ControlNodeHandle,
 }
 
-impl ControlNode for SequenceNode {
+impl ControlNode for Sequence {
     fn add_child(&mut self, node: Box<dyn TreeNode>) {
         self.handle.add_child(node);
     }
 }
 
-impl TreeNode for SequenceNode {
+impl TreeNode for Sequence {
     fn tick(&mut self, ctx: &mut Context) -> NodeStatus {
         let from = self.current_child_idx;
 
@@ -49,7 +49,7 @@ impl TreeNode for SequenceNode {
     }
 }
 
-pub struct ParallelNode {
+pub struct Parallel {
     success_threshold: Option<usize>,
     failure_threshold: Option<usize>,
     success_count: usize,
@@ -58,7 +58,7 @@ pub struct ParallelNode {
     handle: ControlNodeHandle,
 }
 
-impl ParallelNode {
+impl Parallel {
     pub fn new(success_threshold: Option<usize>, failure_threshold: Option<usize>) -> Self {
         Self {
             success_threshold,
@@ -71,13 +71,13 @@ impl ParallelNode {
     }
 }
 
-impl ControlNode for ParallelNode {
+impl ControlNode for Parallel {
     fn add_child(&mut self, node: Box<dyn TreeNode>) {
         self.handle.add_child(node);
     }
 }
 
-impl TreeNode for ParallelNode {
+impl TreeNode for Parallel {
     fn tick(&mut self, ctx: &mut Context) -> NodeStatus {
         let children_count = self.handle.child_nodes.len();
 
@@ -117,17 +117,17 @@ impl TreeNode for ParallelNode {
     }
 }
 
-pub struct SelectorNode {
+pub struct Selector {
     handle: ControlNodeHandle,
 }
 
-impl ControlNode for SelectorNode {
+impl ControlNode for Selector {
     fn add_child(&mut self, node: Box<dyn TreeNode>) {
         self.handle.add_child(node);
     }
 }
 
-impl TreeNode for SelectorNode {
+impl TreeNode for Selector {
     fn tick(&mut self, ctx: &mut Context) -> NodeStatus {
         for node in self.handle.child_nodes.iter_mut() {
             match node.tick(ctx) {
