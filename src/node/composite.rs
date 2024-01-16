@@ -7,11 +7,11 @@ pub trait ControlNode {
 }
 
 #[derive(Default)]
-pub struct ControlNodeHandle {
+struct CompositeHandle {
     child_nodes: Vec<Box<dyn TreeNode>>,
 }
 
-impl ControlNode for ControlNodeHandle {
+impl ControlNode for CompositeHandle {
     fn add_child(&mut self, node: Box<dyn TreeNode>) {
         self.child_nodes.push(node);
     }
@@ -20,7 +20,7 @@ impl ControlNode for ControlNodeHandle {
 #[derive(Default)]
 pub struct Sequence {
     current_child_idx: usize,
-    handle: ControlNodeHandle,
+    handle: CompositeHandle,
 }
 
 impl ControlNode for Sequence {
@@ -55,7 +55,7 @@ pub struct Parallel {
     success_count: usize,
     failure_count: usize,
     completed_list: HashSet<usize>,
-    handle: ControlNodeHandle,
+    handle: CompositeHandle,
 }
 
 impl Parallel {
@@ -66,7 +66,7 @@ impl Parallel {
             success_count: 0,
             failure_count: 0,
             completed_list: HashSet::new(),
-            handle: ControlNodeHandle::default(),
+            handle: CompositeHandle::default(),
         }
     }
 }
@@ -119,7 +119,7 @@ impl TreeNode for Parallel {
 
 #[derive(Default)]
 pub struct Selector {
-    handle: ControlNodeHandle,
+    handle: CompositeHandle,
 }
 
 impl ControlNode for Selector {

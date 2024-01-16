@@ -1,2 +1,2 @@
-pub mod control;
+pub mod composite;
 pub mod decorator;

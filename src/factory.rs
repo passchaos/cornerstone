@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    node::control::{Selector, Sequence},
+    node::composite::{Selector, Sequence},
     TreeNode,
 };
 

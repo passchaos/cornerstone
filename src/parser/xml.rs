@@ -63,7 +63,9 @@ fn create_tree_node_recursively(s: &str, range: Range<usize>) -> Option<Box<dyn 
 
     loop {
         match reader.read_event() {
-            Ok(Event::Start(e)) => {}
+            Ok(Event::Start(e)) => {
+                // if e.name().as_ref()
+            }
             Ok(Event::Eof) => break,
             _ => {}
         }
