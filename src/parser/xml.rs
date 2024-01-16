@@ -1,6 +1,10 @@
 use std::{collections::HashMap, fs::read, hash::Hash, ops::Range, str::FromStr};
 
-use crate::{Result, TreeNode};
+use crate::{
+    factory::{composite_node_types, decorator_node_types, Factory},
+    node::composite::ControlNode,
+    Result, TreeNode,
+};
 use quick_xml::{
     events::{attributes::Attributes, BytesStart, Event},
     name::{self, QName},
@@ -58,12 +62,46 @@ impl<'a> AttributesWrapper<'a> {
     }
 }
 
-fn create_tree_node_recursively(s: &str, range: Range<usize>) -> Option<Box<dyn TreeNode>> {
+fn create_tree_node_recursively<P: ControlNode>(
+    node_factory: &Factory,
+    parent_node: Option<&mut P>,
+    s: &str,
+    range: Range<usize>,
+) -> Result<Option<Box<dyn TreeNode>>> {
     let mut reader = Reader::from_str(&s[range]);
 
     loop {
         match reader.read_event() {
             Ok(Event::Start(e)) => {
+                let name = e.name();
+                let element_name = std::str::from_utf8(name.as_ref())?;
+
+                if composite_node_types().contains(element_name) {
+                    let Some(mut node) = node_factory.build_action(element_name) else {
+                        continue;
+                    };
+
+                    let range = reader.read_to_end(e.to_end().to_owned().name())?;
+
+                //     let child_node = create_tree_node_recursively(node_factory, s, range)?;
+
+                //     if let Some(node) = node {
+
+                //     }
+                } else if decorator_node_types().contains(element_name) {
+                    let Some(mut node) = node_factory.build_action(element_name) else {
+                        continue;
+                    };
+                } else {
+                    let Some(node) = node_factory.build_action(element_name) else {
+                        continue;
+                    };
+
+                    return Ok(Some(node));
+                }
+
+                let decorator_types = decorator_node_types();
+
                 // if e.name().as_ref()
             }
             Ok(Event::Eof) => break,
@@ -71,7 +109,7 @@ fn create_tree_node_recursively(s: &str, range: Range<usize>) -> Option<Box<dyn 
         }
     }
 
-    None
+    Ok(None)
 }
 
 pub fn from_str(s: &str) -> Result<()> {

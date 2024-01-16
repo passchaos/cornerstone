@@ -53,6 +53,7 @@ pub enum ProxyValue {
     Ref(String),
 }
 
+#[derive(Default)]
 pub struct DataProxy {
     ports_mapping: HashMap<String, ProxyValue>,
 }
@@ -68,6 +69,10 @@ impl std::fmt::Debug for DataProxy {
 impl DataProxy {
     pub fn new(map: HashMap<String, ProxyValue>) -> Self {
         Self { ports_mapping: map }
+    }
+
+    pub fn insert(&mut self, key: String, value: ProxyValue) {
+        self.ports_mapping.insert(key, value);
     }
 
     pub fn get<'a, T: 'static>(&'a self, ctx: &'a Context, key: &str) -> Option<&T> {

@@ -2,7 +2,9 @@
 <root BTCPP_format="4"
       main_tree_to_execute="main">
   <BehaviorTree ID="aaa">
-    <AlwaysSuccess/>
+    <ForceSuccess>
+      <PrintBb bb=""/>
+    </ForceSuccess>
   </BehaviorTree>
 
   <BehaviorTree ID="main">
@@ -10,14 +12,15 @@
       <PrintBody body="abcdefg"/>
       <PrintArm arm="left_arm"/>
       <PrintArm arm="right_arm"/>
-      <SetBlackboard value="dddd"
-                     output_key="bb"/>
       <PrintBb bb=""/>
       <Fallback>
         <PrintArm arm="arm_in"/>
         <PrintBody body="abcdefg"/>
       </Fallback>
       <SubTree ID="aaa"/>
+      <Repeat num_cycles="10">
+        <PrintBb bb=""/>
+      </Repeat>
     </Sequence>
   </BehaviorTree>
 

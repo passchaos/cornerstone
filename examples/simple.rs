@@ -97,7 +97,13 @@ fn main() {
 
     seq_root.add_child(Box::new(arms_root));
 
-    let mut root = Repeat::new(5, Box::new(seq_root));
+    let mut n_dp = DataProxy::default();
+    n_dp.insert(
+        "num_cycles".to_string(),
+        ProxyValue::Real(Box::new("10".to_string())),
+    );
+
+    let mut root = Repeat::new(5, n_dp, Box::new(seq_root));
 
     loop {
         let status = root.tick(&mut ctx);
