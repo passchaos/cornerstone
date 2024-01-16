@@ -5,7 +5,7 @@ use cornerstone::{
         control::{ControlNode, Sequence},
         decorator::Repeat,
     },
-    Context, DataProxy, NodeStatus, TreeNode,
+    Context, DataProxy, NodeStatus, ProxyValue, TreeNode,
 };
 
 #[derive(Clone, Debug)]
@@ -81,13 +81,13 @@ fn main() {
     let mut arms_root = Sequence::default();
 
     let mut left_ports = HashMap::new();
-    left_ports.insert("arm".to_string(), "left_arm".to_string());
+    left_ports.insert("arm".to_string(), ProxyValue::Ref("left_arm".to_string()));
     let left_arm = PrintArmNode {
         data_proxy: DataProxy::new(left_ports),
     };
 
     let mut right_ports = HashMap::new();
-    right_ports.insert("arm".to_string(), "right_arm".to_string());
+    right_ports.insert("arm".to_string(), ProxyValue::Ref("right_arm".to_string()));
     let right_arm = PrintArmNode {
         data_proxy: DataProxy::new(right_ports),
     };

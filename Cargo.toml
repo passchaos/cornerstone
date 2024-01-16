@@ -11,3 +11,6 @@ documentation = "https://docs.rs/crate/cornerstone/latest"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+minidom = "0.15.2"
+quick-xml = "0.31.0"
+thiserror = "1.0.56"

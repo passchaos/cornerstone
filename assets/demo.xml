@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root BTCPP_format="4">
+    <BehaviorTree ID="untitled">
+        <Sequence>
+            <PrintBody body="body" />
+            <PrintArm arm="left_arm" />
+            <PrintArm arm="{arm}" />
+            <AlwaysSuccess />
+        </Sequence>
+    </BehaviorTree>
+</root>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root BTCPP_format="4"
+      main_tree_to_execute="main">
+  <BehaviorTree ID="aaa">
+    <AlwaysSuccess/>
+  </BehaviorTree>
+
+  <BehaviorTree ID="main">
+    <Sequence>
+      <PrintBody body="abcdefg"/>
+      <PrintArm arm="left_arm"/>
+      <PrintArm arm="right_arm"/>
+      <SetBlackboard value="dddd"
+                     output_key="bb"/>
+      <PrintBb bb=""/>
+      <Fallback>
+        <PrintArm arm="arm_in"/>
+        <PrintBody body="abcdefg"/>
+      </Fallback>
+      <SubTree ID="aaa"/>
+    </Sequence>
+  </BehaviorTree>
+
+  <!-- Description of Node Models (used by Groot) -->
+  <TreeNodesModel>
+    <Action ID="PrintArm"
+            editable="true">
+      <input_port name="arm"
+                  default="arm_in">arm info</input_port>
+    </Action>
+    <Action ID="PrintBb"
+            editable="true">
+      <input_port name="bb">asdfasdf</input_port>
+    </Action>
+    <Action ID="PrintBody"
+            editable="true">
+      <input_port name="body"
+                  default="abcdefg">body info</input_port>
+    </Action>
+  </TreeNodesModel>
+
+</root>

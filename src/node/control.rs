@@ -117,6 +117,7 @@ impl TreeNode for Parallel {
     }
 }
 
+#[derive(Default)]
 pub struct Selector {
     handle: ControlNodeHandle,
 }
