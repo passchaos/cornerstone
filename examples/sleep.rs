@@ -4,7 +4,7 @@ use std::{
 };
 
 use cornerstone::{
-    node::composite::{ControlNode, Parallel, Sequence},
+    node::composite::{Composite, Parallel, Sequence},
     Context, DataProxy, NodeStatus, TreeNode,
 };
 

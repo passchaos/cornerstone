@@ -2,100 +2,123 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     node::{
-        composite::{ControlNode, Selector, Sequence},
-        decorator::{DecoratorNode, Repeat},
+        composite::{Composite, CompositeNode, Selector, Sequence},
+        decorator::{Decorator, DecoratorNode, ForceSuccess, Repeat},
     },
-    TreeNode,
+    DataProxy, TreeNode,
 };
 
 pub struct Factory {
-    composite_types: HashMap<String, Box<dyn Fn() -> Box<dyn ControlNode>>>,
-    decorator_types: HashMap<String, Box<dyn Fn() -> Box<dyn DecoratorNode>>>,
-    action_node_types: HashMap<String, Box<dyn Fn() -> Box<dyn TreeNode>>>,
+    composite_tcs: HashMap<String, Box<dyn Fn(Attrs) -> Box<dyn CompositeNode>>>,
+    decorator_tcs: HashMap<String, Box<dyn Fn(Attrs, Box<dyn TreeNode>) -> Box<dyn DecoratorNode>>>,
+    action_node_tcs: HashMap<String, Box<dyn Fn(Attrs) -> Box<dyn TreeNode>>>,
 }
 
-fn boxify_composite<T, F>(cons: F) -> Box<dyn Fn() -> Box<dyn ControlNode>>
+type Attrs = HashMap<String, String>;
+
+fn boxify_composite<T, F>(cons: F) -> Box<dyn Fn(Attrs) -> Box<dyn CompositeNode>>
 where
-    F: 'static + Fn() -> T,
-    T: 'static + ControlNode,
+    F: 'static + Fn(Attrs) -> T,
+    T: 'static + CompositeNode,
 {
-    Box::new(move || Box::new(cons()))
+    Box::new(move |attrs| Box::new(cons(attrs)))
 }
 
-fn boxify_decorator<T, F>(cons: F) -> Box<dyn Fn() -> Box<dyn DecoratorNode>>
+fn boxify_decorator<T, F>(
+    cons: F,
+) -> Box<dyn Fn(Attrs, Box<dyn TreeNode>) -> Box<dyn DecoratorNode>>
 where
-    F: 'static + Fn() -> T,
+    F: 'static + Fn(Attrs, Box<dyn TreeNode>) -> T,
     T: 'static + DecoratorNode,
 {
-    Box::new(move || Box::new(cons()))
+    Box::new(move |attrs, child| Box::new(cons(attrs, child)))
+}
+
+pub fn boxify_action<T, F>(cons: F) -> Box<dyn Fn(Attrs) -> Box<dyn TreeNode>>
+where
+    F: 'static + Fn(Attrs) -> T,
+    T: 'static + TreeNode,
+{
+    Box::new(move |attrs| Box::new(cons(attrs)))
 }
 
 impl Factory {
+    pub fn composite_types(&self) -> HashSet<&str> {
+        self.composite_tcs.keys().map(|a| a.as_str()).collect()
+    }
+
+    pub fn decorator_types(&self) -> HashSet<&str> {
+        self.decorator_tcs.keys().map(|a| a.as_str()).collect()
+    }
+
+    pub fn action_node_types(&self) -> HashSet<&str> {
+        self.action_node_tcs.keys().map(|a| a.as_str()).collect()
+    }
+
     fn register_composite_type(
         &mut self,
         type_name: String,
-        constructor: Box<dyn Fn() -> Box<dyn ControlNode>>,
+        constructor: Box<dyn Fn(Attrs) -> Box<dyn CompositeNode>>,
     ) {
-        self.composite_types.insert(type_name, constructor);
+        self.composite_tcs.insert(type_name, constructor);
     }
 
     fn register_decorator_type(
         &mut self,
         type_name: String,
-        constructor: Box<dyn Fn() -> Box<dyn DecoratorNode>>,
+        constructor: Box<dyn Fn(Attrs, Box<dyn TreeNode>) -> Box<dyn DecoratorNode>>,
     ) {
-        self.decorator_types.insert(type_name, constructor);
+        self.decorator_tcs.insert(type_name, constructor);
     }
 
     pub fn register_action_node_type(
         &mut self,
         type_name: String,
-        constructor: Box<dyn Fn() -> Box<dyn TreeNode>>,
+        constructor: Box<dyn Fn(Attrs) -> Box<dyn TreeNode>>,
     ) {
-        self.action_node_types.insert(type_name, constructor);
+        self.action_node_tcs.insert(type_name, constructor);
     }
-    fn build_composite(&self, type_name: &str) -> Option<Box<dyn ControlNode>> {
-        self.composite_types.get(type_name).map(|c| c())
-    }
-
-    fn build_decorator(&self, type_name: &str) -> Option<Box<dyn DecoratorNode>> {
-        self.decorator_types.get(type_name).map(|c| c())
+    pub fn build_composite(&self, type_name: &str, attrs: Attrs) -> Option<Box<dyn CompositeNode>> {
+        self.composite_tcs.get(type_name).map(|c| c(attrs))
     }
 
-    pub fn build_action(&self, type_name: &str) -> Option<Box<dyn TreeNode>> {
-        self.action_node_types.get(type_name).map(|c| c())
+    pub fn build_decorator(
+        &self,
+        type_name: &str,
+        attrs: Attrs,
+        node: Box<dyn TreeNode>,
+    ) -> Option<Box<dyn DecoratorNode>> {
+        self.decorator_tcs.get(type_name).map(|c| c(attrs, node))
+    }
+
+    pub fn build_action(&self, type_name: &str, attrs: Attrs) -> Option<Box<dyn TreeNode>> {
+        self.action_node_tcs.get(type_name).map(|c| c(attrs))
     }
 }
 
 impl Default for Factory {
     fn default() -> Self {
         let mut fac = Self {
-            composite_types: HashMap::new(),
-            decorator_types: HashMap::new(),
-            action_node_types: HashMap::new(),
+            composite_tcs: HashMap::new(),
+            decorator_tcs: HashMap::new(),
+            action_node_tcs: HashMap::new(),
         };
 
-        fac.register_composite_type("Sequence".to_string(), boxify_composite(Sequence::default));
-        fac.register_composite_type("Fallback".to_string(), boxify_composite(Selector::default));
+        fac.register_composite_type(
+            "Sequence".to_string(),
+            boxify_composite(|_| Sequence::default()),
+        );
+        fac.register_composite_type(
+            "Fallback".to_string(),
+            boxify_composite(|_| Selector::default()),
+        );
+        fac.register_decorator_type(
+            "ForceSuccess".to_string(),
+            boxify_decorator(|_, node| ForceSuccess::new(DataProxy::default(), node)),
+        );
 
         // fac.register_decorator_type("Repeat".to_string(), boxify_decorator(Repeat::))
 
         fac
     }
-}
-
-pub fn composite_node_types() -> HashSet<&'static str> {
-    let mut set = HashSet::new();
-    set.insert("Sequnce");
-    set.insert("Fallback");
-
-    set
-}
-
-pub fn decorator_node_types() -> HashSet<&'static str> {
-    let mut set = HashSet::new();
-    set.insert("Repeat");
-    set.insert("ForceSuccess");
-
-    set
 }

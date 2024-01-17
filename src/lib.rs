@@ -44,8 +44,22 @@ pub enum NodeStatus {
     Running,
 }
 
-pub trait TreeNode {
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum NodeType {
+    Composite,
+    Decorator,
+    Action,
+}
+
+pub trait TreeNode: Any {
     fn tick(&mut self, ctx: &mut Context) -> NodeStatus;
+    fn node_type(&self) -> NodeType {
+        NodeType::Action
+    }
+
+    fn debug_info(&self) -> String {
+        format!("{}", std::any::type_name_of_val(self))
+    }
 }
 
 pub enum ProxyValue {

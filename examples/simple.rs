@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use cornerstone::{
     node::{
-        composite::{ControlNode, Sequence},
+        composite::{Composite, Sequence},
         decorator::Repeat,
     },
     Context, DataProxy, NodeStatus, ProxyValue, TreeNode,

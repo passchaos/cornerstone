@@ -1,21 +1,26 @@
 use std::collections::HashSet;
 
-use crate::{Context, NodeStatus, TreeNode};
+use crate::{Context, DataProxy, NodeStatus, TreeNode};
 
-pub trait ControlNode {
+pub trait Composite {
     fn add_child(&mut self, node: Box<dyn TreeNode>);
 }
 
 #[derive(Default)]
 struct CompositeHandle {
+    data_proxy: DataProxy,
     child_nodes: Vec<Box<dyn TreeNode>>,
 }
 
-impl ControlNode for CompositeHandle {
+impl Composite for CompositeHandle {
     fn add_child(&mut self, node: Box<dyn TreeNode>) {
         self.child_nodes.push(node);
     }
 }
+
+pub trait CompositeNode: TreeNode + Composite {}
+
+impl<T> CompositeNode for T where T: TreeNode + Composite {}
 
 #[derive(Default)]
 pub struct Sequence {
@@ -23,7 +28,7 @@ pub struct Sequence {
     handle: CompositeHandle,
 }
 
-impl ControlNode for Sequence {
+impl Composite for Sequence {
     fn add_child(&mut self, node: Box<dyn TreeNode>) {
         self.handle.add_child(node);
     }
@@ -47,8 +52,23 @@ impl TreeNode for Sequence {
 
         NodeStatus::Success
     }
+
+    fn node_type(&self) -> crate::NodeType {
+        crate::NodeType::Composite
+    }
+
+    fn debug_info(&self) -> String {
+        let mut s = format!("Self: {:?} | ", self.node_type());
+
+        for child in &self.handle.child_nodes {
+            s.push_str(&format!("child= {:?} | ", child.node_type()));
+        }
+
+        s
+    }
 }
 
+#[derive(Default)]
 pub struct Parallel {
     success_threshold: Option<usize>,
     failure_threshold: Option<usize>,
@@ -57,6 +77,9 @@ pub struct Parallel {
     completed_list: HashSet<usize>,
     handle: CompositeHandle,
 }
+
+pub const PARALLEL_SUCCESS_COUNT: &str = "success_count";
+pub const PARALLEL_FAILURE_COUNT: &str = "failure_count";
 
 impl Parallel {
     pub fn new(success_threshold: Option<usize>, failure_threshold: Option<usize>) -> Self {
@@ -71,7 +94,7 @@ impl Parallel {
     }
 }
 
-impl ControlNode for Parallel {
+impl Composite for Parallel {
     fn add_child(&mut self, node: Box<dyn TreeNode>) {
         self.handle.add_child(node);
     }
@@ -115,6 +138,20 @@ impl TreeNode for Parallel {
 
         NodeStatus::Running
     }
+
+    fn node_type(&self) -> crate::NodeType {
+        crate::NodeType::Composite
+    }
+
+    fn debug_info(&self) -> String {
+        let mut s = format!("Self: {:?} | ", self.node_type());
+
+        for child in &self.handle.child_nodes {
+            s.push_str(&format!("child= {:?} | ", child.node_type()));
+        }
+
+        s
+    }
 }
 
 #[derive(Default)]
@@ -122,7 +159,7 @@ pub struct Selector {
     handle: CompositeHandle,
 }
 
-impl ControlNode for Selector {
+impl Composite for Selector {
     fn add_child(&mut self, node: Box<dyn TreeNode>) {
         self.handle.add_child(node);
     }
@@ -139,5 +176,19 @@ impl TreeNode for Selector {
         }
 
         NodeStatus::Failure
+    }
+
+    fn node_type(&self) -> crate::NodeType {
+        crate::NodeType::Composite
+    }
+
+    fn debug_info(&self) -> String {
+        let mut s = format!("Self: {:?} | ", self.node_type());
+
+        for child in &self.handle.child_nodes {
+            s.push_str(&format!("child= {:?} | ", child.node_type()));
+        }
+
+        s
     }
 }

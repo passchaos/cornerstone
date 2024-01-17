@@ -4,7 +4,7 @@ use minidom::Node;
 
 use crate::{Context, DataProxy, NodeStatus, TreeNode};
 
-pub trait DecoratorNode {
+pub trait Decorator {
     fn new(data_proxy: DataProxy, node: Box<dyn TreeNode>) -> Self
     where
         Self: Sized;
@@ -15,7 +15,7 @@ pub struct DecoratorNodeHandle {
     node: Box<dyn TreeNode>,
 }
 
-impl DecoratorNode for DecoratorNodeHandle {
+impl Decorator for DecoratorNodeHandle {
     fn new(data_proxy: DataProxy, node: Box<dyn TreeNode>) -> Self
     where
         Self: Sized,
@@ -23,6 +23,10 @@ impl DecoratorNode for DecoratorNodeHandle {
         Self { data_proxy, node }
     }
 }
+
+pub trait DecoratorNode: TreeNode + Decorator {}
+
+impl<T> DecoratorNode for T where T: TreeNode + Decorator {}
 
 pub struct ForceSuccess {
     handle: DecoratorNodeHandle,
@@ -35,9 +39,13 @@ impl TreeNode for ForceSuccess {
             _ => NodeStatus::Success,
         }
     }
+
+    fn node_type(&self) -> crate::NodeType {
+        crate::NodeType::Decorator
+    }
 }
 
-impl DecoratorNode for ForceSuccess {
+impl Decorator for ForceSuccess {
     fn new(data_proxy: DataProxy, node: Box<dyn TreeNode>) -> Self
     where
         Self: Sized,
@@ -89,5 +97,9 @@ impl TreeNode for Repeat {
             }
             res => return res,
         }
+    }
+
+    fn node_type(&self) -> crate::NodeType {
+        crate::NodeType::Decorator
     }
 }
