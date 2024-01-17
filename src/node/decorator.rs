@@ -74,12 +74,21 @@ pub struct Repeat {
 }
 
 impl Repeat {
-    pub fn new(count: usize, data_proxy: DataProxy, node: Box<dyn TreeNode>) -> Self {
+    pub fn new_with_count(count: usize, data_proxy: DataProxy, node: Box<dyn TreeNode>) -> Self {
         Self {
             repeat_count: 0,
             num_cycles: count,
             handle: DecoratorNodeHandle::new(data_proxy, node),
         }
+    }
+}
+
+impl Decorator for Repeat {
+    fn new(data_proxy: DataProxy, node: Box<dyn TreeNode>) -> Self
+    where
+        Self: Sized,
+    {
+        Self::new_with_count(0, data_proxy, node)
     }
 }
 
@@ -92,16 +101,18 @@ impl TreeNode for Repeat {
             .and_then(|a| a.parse::<usize>().ok())
             .unwrap_or(self.num_cycles);
 
+        tracing::trace!("bb num cycles: {num_cycles}");
+
         if num_cycles == 0 {
             return NodeStatus::Success;
         }
 
         match self.handle.node.tick(ctx) {
-            NodeStatus::Success | NodeStatus::Failure => {
+            a @ NodeStatus::Success | a @ NodeStatus::Failure => {
                 self.repeat_count += 1;
 
                 if self.repeat_count == num_cycles {
-                    return NodeStatus::Success;
+                    return a;
                 } else {
                     return NodeStatus::Running;
                 }
@@ -112,5 +123,20 @@ impl TreeNode for Repeat {
 
     fn node_type(&self) -> crate::NodeType {
         crate::NodeType::Decorator
+    }
+
+    fn debug_info(&self) -> String {
+        let mut s = format!(
+            "Self: {:?} {}",
+            self.node_type(),
+            std::any::type_name_of_val(self)
+        );
+
+        s.push_str(&format!(
+            "\n\t=========>child= {}",
+            self.handle.node.debug_info()
+        ));
+
+        s
     }
 }

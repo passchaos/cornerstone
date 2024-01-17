@@ -84,6 +84,7 @@ fn create_tree_node_recursively(
                 if factory.composite_types().contains(element_name) {
                     tracing::trace!("composite node");
                     let Some(node) = factory.build_composite(element_name, wrapper.kv()?) else {
+                        tracing::warn!("can't create node: element_name= {element_name}");
                         continue;
                     };
 
@@ -103,6 +104,8 @@ fn create_tree_node_recursively(
                             let Some(node) =
                                 factory.build_action(node_element_name, node_wrapper.kv()?)
                             else {
+                                tracing::warn!("can't create node: element_name= {element_name}");
+
                                 continue;
                             };
 
@@ -111,6 +114,8 @@ fn create_tree_node_recursively(
                             let Some(node) =
                                 factory.build_decorator(element_name, wrapper.kv()?, node)
                             else {
+                                tracing::warn!("can't create node: element_name= {element_name}");
+
                                 continue;
                             };
 
@@ -125,6 +130,8 @@ fn create_tree_node_recursively(
                 } else if factory.action_node_types().contains(element_name) {
                     tracing::trace!("leaf node: {element_name}");
                     let Some(node) = factory.build_action(element_name, wrapper.kv()?) else {
+                        tracing::warn!("can't create node: element_name= {element_name}");
+
                         continue;
                     };
 
@@ -140,6 +147,8 @@ fn create_tree_node_recursively(
                     let ref_tree_id = wrapper
                         .get_key("ID")?
                         .ok_or_else(|| BtError::Raw("no ID found for SubTree".to_string()))?;
+
+                    tracing::trace!("SubTree ID: {}", ref_tree_id);
 
                     let range = tree_ranges[&ref_tree_id].clone();
 
@@ -227,8 +236,6 @@ pub fn create_bt_tree_from_xml_str(
             _ => {}
         }
     }
-
-    let mut ctx = Context::default();
 
     let main_tree = if let Some(main_tree_id) = main_tree_id {
         tree_ranges.remove(&main_tree_id)
@@ -318,16 +325,16 @@ mod test {
         factory.register_action_node_type("PrintBody".to_string(), boxify_action(|_| PrintBody));
         factory.register_action_node_type("PrintArm".to_string(), boxify_action(|_| PrintArm));
 
-        // let mut xml_path = assets_dir();
-        // xml_path.push("full.xml");
+        let mut xml_path = assets_dir();
+        xml_path.push("full.xml");
 
-        // let xml_str = std::fs::read_to_string(xml_path).unwrap();
-        let xml_str = XML;
+        let xml_str = std::fs::read_to_string(xml_path).unwrap();
+        // let xml_str = XML;
 
         let node = create_bt_tree_from_xml_str(&factory, &xml_str).unwrap();
 
         if let Some(mut node) = node {
-            println!("node debug info: {}", node.debug_info());
+            tracing::info!("node debug info: {}", node.debug_info());
 
             let mut ctx = Context::default();
 

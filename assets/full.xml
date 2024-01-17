@@ -13,7 +13,7 @@
   </BehaviorTree>
 
   <BehaviorTree ID="bbb">
-    <AlwaysSuccess/>
+    <PrintArm arm="arm"/>
   </BehaviorTree>
 
   <BehaviorTree ID="main">
@@ -28,7 +28,7 @@
       </Fallback>
       <SubTree ID="aaa"/>
       <Repeat num_cycles="10">
-        <PrintBb bb=""/>
+        <PrintBody body="aaa"/>
       </Repeat>
     </Sequence>
   </BehaviorTree>

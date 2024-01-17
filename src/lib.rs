@@ -83,7 +83,18 @@ impl std::fmt::Debug for DataProxy {
 }
 
 impl DataProxy {
-    pub fn new(map: HashMap<String, ProxyValue>) -> Self {
+    pub fn new(map: HashMap<String, String>) -> Self {
+        let map = map
+            .into_iter()
+            .map(|(k, v)| {
+                if v.starts_with("{") && v.ends_with("}") {
+                    (k, ProxyValue::Ref(v))
+                } else {
+                    (k, ProxyValue::Real(Box::new(v)))
+                }
+            })
+            .collect();
+
         Self { ports_mapping: map }
     }
 

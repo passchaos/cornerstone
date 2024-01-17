@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     node::{
-        composite::{CompositeNode, Selector, Sequence},
-        decorator::{Decorator, DecoratorNode, ForceSuccess},
+        composite::{CompositeNode, Parallel, Selector, Sequence},
+        decorator::{Decorator, DecoratorNode, ForceSuccess, Repeat},
     },
     DataProxy, TreeNode,
 };
@@ -112,9 +112,18 @@ impl Default for Factory {
             "Fallback".to_string(),
             boxify_composite(|_| Selector::default()),
         );
+        fac.register_composite_type(
+            "Parallel".to_string(),
+            boxify_composite(|_| Parallel::default()),
+        );
+
         fac.register_decorator_type(
             "ForceSuccess".to_string(),
             boxify_decorator(|_, node| ForceSuccess::new(DataProxy::default(), node)),
+        );
+        fac.register_decorator_type(
+            "Repeat".to_string(),
+            boxify_decorator(|map, node| Repeat::new(DataProxy::new(map), node)),
         );
 
         // fac.register_decorator_type("Repeat".to_string(), boxify_decorator(Repeat::))
