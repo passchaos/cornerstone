@@ -10,7 +10,7 @@ use std::{
 use crate::{
     factory::{self, Factory},
     node::composite::{Composite, CompositeNode},
-    Context, NodeStatus, NodeType, Result, TreeNode,
+    BtError, Context, NodeStatus, NodeType, Result, TreeNode,
 };
 use quick_xml::{
     events::{attributes::Attributes, BytesStart, Event},
@@ -251,6 +251,18 @@ pub fn from_str(factory: &Factory, s: &str) -> Result<()> {
         }
         println!("id= {id} content= {}", &s[tree_range]);
     }
+
+    let main_tree = if let Some(main_tree_id) = main_tree_id {
+        tree_ranges.remove(&main_tree_id)
+    } else {
+        tree_ranges.drain().next().map(|a| a.1)
+    };
+
+    let Some(main_tree) = main_tree else {
+        return Err(BtError::Raw("no main bt tree found".to_string()));
+    };
+
+    // let mut non_main_tree
 
     Ok(())
 }

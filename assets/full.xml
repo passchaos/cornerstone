@@ -2,9 +2,18 @@
 <root BTCPP_format="4"
       main_tree_to_execute="main">
   <BehaviorTree ID="aaa">
-    <ForceSuccess>
-      <PrintBb bb=""/>
-    </ForceSuccess>
+    <Parallel failure_count="1"
+              success_count="-1">
+      <SubTree ID="bbb"/>
+      <ForceSuccess>
+        <PrintBody body="abcdefg"/>
+      </ForceSuccess>
+      <SubTree ID="bbb"/>
+    </Parallel>
+  </BehaviorTree>
+
+  <BehaviorTree ID="bbb">
+    <AlwaysSuccess/>
   </BehaviorTree>
 
   <BehaviorTree ID="main">
