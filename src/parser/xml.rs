@@ -65,14 +65,14 @@ fn create_tree_node_recursively(
     check_range: Range<usize>,
     tree_ranges: &HashMap<String, Range<usize>>,
 ) -> Result<Option<Box<dyn TreeNode>>> {
-    println!("input: root_str= {s} check_range= {check_range:?}");
+    tracing::trace!("input: root_str= {s} check_range= {check_range:?}");
     let mut reader = Reader::from_str(&s[check_range]);
 
     let mut control_nodes = VecDeque::new();
 
     loop {
         let event = reader.read_event();
-        println!("event: {event:?}");
+        tracing::trace!("event: {event:?}");
 
         match event {
             Ok(Event::Start(e)) | Ok(Event::Empty(e)) => {
@@ -82,17 +82,17 @@ fn create_tree_node_recursively(
                 let wrapper = AttributesWrapper::new(e.attributes());
 
                 if factory.composite_types().contains(element_name) {
-                    println!("composite node");
+                    tracing::trace!("composite node");
                     let Some(node) = factory.build_composite(element_name, wrapper.kv()?) else {
                         continue;
                     };
 
                     control_nodes.push_front(node);
                 } else if factory.decorator_types().contains(element_name) {
-                    println!("decorator node");
+                    tracing::trace!("decorator node");
 
                     let e = reader.read_event()?;
-                    println!("event after decorator: {e:?}");
+                    tracing::trace!("event after decorator: {e:?}");
 
                     match reader.read_event()? {
                         Event::Start(e) | Event::Empty(e) => {
@@ -106,7 +106,7 @@ fn create_tree_node_recursively(
                                 continue;
                             };
 
-                            println!("has node: {node_element_name}");
+                            tracing::trace!("has node: {node_element_name}");
 
                             let Some(node) =
                                 factory.build_decorator(element_name, wrapper.kv()?, node)
@@ -123,7 +123,7 @@ fn create_tree_node_recursively(
                         _ => {}
                     }
                 } else if factory.action_node_types().contains(element_name) {
-                    println!("leaf node: {element_name}");
+                    tracing::trace!("leaf node: {element_name}");
                     let Some(node) = factory.build_action(element_name, wrapper.kv()?) else {
                         continue;
                     };
@@ -134,7 +134,7 @@ fn create_tree_node_recursively(
                         return Ok(Some(node));
                     }
                 } else if element_name == "SubTree" {
-                    println!("SubTree");
+                    tracing::trace!("SubTree");
 
                     let wrapper = AttributesWrapper::new(e.attributes());
                     let ref_tree_id = wrapper
@@ -152,7 +152,7 @@ fn create_tree_node_recursively(
                         return Ok(Some(node));
                     }
                 } else {
-                    println!("unknown element: {element_name}");
+                    tracing::warn!("unknown element: {element_name}");
                 }
             }
             Ok(Event::End(e)) => {
@@ -167,7 +167,7 @@ fn create_tree_node_recursively(
                             return Ok(Some(control_node));
                         }
                     } else {
-                        println!("unexpected end: {element_name}");
+                        tracing::warn!("unexpected end: {element_name}");
                     }
                 }
             }
@@ -313,15 +313,18 @@ mod test {
 
     #[test]
     fn test_parse() {
-        // let mut xml_path = assets_dir();
-        // xml_path.push("full.xml");
-        // let str = std::fs::read_to_string(xml_path).unwrap();
-
+        tracing_subscriber::fmt::init();
         let mut factory = Factory::default();
         factory.register_action_node_type("PrintBody".to_string(), boxify_action(|_| PrintBody));
         factory.register_action_node_type("PrintArm".to_string(), boxify_action(|_| PrintArm));
 
-        let node = create_bt_tree_from_xml_str(&factory, XML).unwrap();
+        // let mut xml_path = assets_dir();
+        // xml_path.push("full.xml");
+
+        // let xml_str = std::fs::read_to_string(xml_path).unwrap();
+        let xml_str = XML;
+
+        let node = create_bt_tree_from_xml_str(&factory, &xml_str).unwrap();
 
         if let Some(mut node) = node {
             println!("node debug info: {}", node.debug_info());
