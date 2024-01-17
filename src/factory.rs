@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     node::{
-        composite::{Composite, CompositeNode, Selector, Sequence},
-        decorator::{Decorator, DecoratorNode, ForceSuccess, Repeat},
+        composite::{CompositeNode, Selector, Sequence},
+        decorator::{Decorator, DecoratorNode, ForceSuccess},
     },
     DataProxy, TreeNode,
 };

@@ -18,32 +18,6 @@ use quick_xml::{
     Reader,
 };
 
-fn handle_byte_start<'a>(e: BytesStart<'a>) {
-    let name = e.name();
-    let attributes = e.attributes();
-
-    for att in attributes {
-        println!("name= {name:?} att= {att:?}");
-    }
-}
-
-pub fn from_str_dom(s: &str) -> Result<()> {
-    let e = minidom::Element::from_str(s)?;
-    println!("element: {e:?}");
-
-    Ok(())
-}
-
-struct BtRoot {
-    main_tree_to_execute: String,
-    trees: HashMap<String, String>,
-}
-
-struct BtTree {
-    id: String,
-    node: Box<dyn TreeNode>,
-}
-
 struct AttributesWrapper<'a> {
     attrs: Attributes<'a>,
 }
@@ -205,7 +179,10 @@ fn create_tree_node_recursively(
     Ok(None)
 }
 
-pub fn from_str(factory: &Factory, s: &str) -> Result<()> {
+pub fn create_bt_tree_from_xml_str(
+    factory: &Factory,
+    s: &str,
+) -> Result<Option<Box<dyn TreeNode>>> {
     let mut reader = Reader::from_str(s);
     reader.trim_text(true);
 
@@ -265,23 +242,7 @@ pub fn from_str(factory: &Factory, s: &str) -> Result<()> {
 
     let node = create_tree_node_recursively(factory, s, main_tree_range, &tree_ranges)?;
 
-    if let Some(mut node) = node {
-        let node_type = node.node_type();
-
-        loop {
-            let res = node.tick(&mut ctx);
-
-            if res != NodeStatus::Running {
-                break;
-            }
-        }
-
-        println!("debug: {}", node.debug_info());
-    }
-
-    // let mut non_main_tree
-
-    Ok(())
+    Ok(node)
 }
 
 #[cfg(test)]
@@ -360,6 +321,20 @@ mod test {
         factory.register_action_node_type("PrintBody".to_string(), boxify_action(|_| PrintBody));
         factory.register_action_node_type("PrintArm".to_string(), boxify_action(|_| PrintArm));
 
-        from_str(&factory, XML).unwrap();
+        let node = create_bt_tree_from_xml_str(&factory, XML).unwrap();
+
+        if let Some(mut node) = node {
+            println!("node debug info: {}", node.debug_info());
+
+            let mut ctx = Context::default();
+
+            loop {
+                let res = node.tick(&mut ctx);
+
+                if res != NodeStatus::Running {
+                    break;
+                }
+            }
+        }
     }
 }

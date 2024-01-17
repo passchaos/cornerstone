@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap, str::Utf8Error, sync::Arc};
+use std::{any::Any, collections::HashMap, sync::Arc};
 
 use thiserror::Error;
 
@@ -16,8 +16,6 @@ pub enum BtError {
     XmlAttr(#[from] quick_xml::events::attributes::AttrError),
     #[error("str parse error")]
     Str(#[from] std::str::Utf8Error),
-    #[error("dom xml parse meet failure")]
-    Minidom(#[from] minidom::Error),
     #[error("raw error {0}")]
     Raw(String),
 }
