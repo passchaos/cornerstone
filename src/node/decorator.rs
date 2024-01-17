@@ -103,3 +103,35 @@ impl TreeNode for Repeat {
         crate::NodeType::Decorator
     }
 }
+
+pub struct SubTree {
+    handle: DecoratorNodeHandle,
+}
+
+impl Decorator for SubTree {
+    fn new(data_proxy: DataProxy, node: Box<dyn TreeNode>) -> Self
+    where
+        Self: Sized,
+    {
+        Self {
+            handle: DecoratorNodeHandle::new(data_proxy, node),
+        }
+    }
+}
+
+impl TreeNode for SubTree {
+    fn tick(&mut self, ctx: &mut Context) -> NodeStatus {
+        self.handle.node.tick(ctx)
+    }
+
+    fn node_type(&self) -> crate::NodeType {
+        crate::NodeType::Decorator
+    }
+
+    fn debug_info(&self) -> String {
+        let mut s = format!("SubTree");
+        s.push_str(&format!(" child= {:?}", self.handle.node.debug_info()));
+
+        s
+    }
+}

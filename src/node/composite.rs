@@ -58,10 +58,14 @@ impl TreeNode for Sequence {
     }
 
     fn debug_info(&self) -> String {
-        let mut s = format!("Self: {:?} | ", self.node_type());
+        let mut s = format!(
+            "Self: {:?} {} | ",
+            self.node_type(),
+            std::any::type_name_of_val(self)
+        );
 
         for child in &self.handle.child_nodes {
-            s.push_str(&format!("child= {:?} | ", child.node_type()));
+            s.push_str(&format!("\n\t----->child= {}", child.debug_info()));
         }
 
         s
@@ -186,7 +190,7 @@ impl TreeNode for Selector {
         let mut s = format!("Self: {:?} | ", self.node_type());
 
         for child in &self.handle.child_nodes {
-            s.push_str(&format!("child= {:?} | ", child.node_type()));
+            s.push_str(&format!("child= {:?} | ", child.debug_info()));
         }
 
         s

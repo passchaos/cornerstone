@@ -58,7 +58,11 @@ pub trait TreeNode: Any {
     }
 
     fn debug_info(&self) -> String {
-        format!("{}", std::any::type_name_of_val(self))
+        format!(
+            "{:?} {}",
+            self.node_type(),
+            std::any::type_name_of_val(self)
+        )
     }
 }
 
