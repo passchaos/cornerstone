@@ -85,9 +85,14 @@ impl<'a> AttributesWrapper<'a> {
 }
 
 // 只有action节点才是叶子节点
-fn create_tree_node_recursively(factory: &Factory, s: &str) -> Result<Option<Box<dyn TreeNode>>> {
-    println!("input: {s}");
-    let mut reader = Reader::from_str(s);
+fn create_tree_node_recursively(
+    factory: &Factory,
+    s: &str,
+    check_range: Range<usize>,
+    tree_ranges: &HashMap<String, Range<usize>>,
+) -> Result<Option<Box<dyn TreeNode>>> {
+    println!("input: root_str= {s} check_range= {check_range:?}");
+    let mut reader = Reader::from_str(&s[check_range]);
 
     let mut control_nodes = VecDeque::new();
 
@@ -143,12 +148,7 @@ fn create_tree_node_recursively(factory: &Factory, s: &str) -> Result<Option<Box
                         }
                         _ => {}
                     }
-
-                    // let new_range = reader.read_to_end(e.to_end().name())?;
-
-                    // let node = create_tree_node_recursively(factory, &s[new_range.clone()])?;
-                    // println!("new range: {new_range:?} node= {}", node.is_none());
-                } else {
+                } else if factory.action_node_types().contains(element_name) {
                     println!("leaf node: {element_name}");
                     let Some(node) = factory.build_action(element_name, wrapper.kv()?) else {
                         continue;
@@ -159,6 +159,26 @@ fn create_tree_node_recursively(factory: &Factory, s: &str) -> Result<Option<Box
                     } else {
                         return Ok(Some(node));
                     }
+                } else if element_name == "SubTree" {
+                    println!("SubTree");
+
+                    let wrapper = AttributesWrapper::new(e.attributes());
+                    let ref_tree_id = wrapper
+                        .get_key("ID")?
+                        .ok_or_else(|| BtError::Raw("no ID found for SubTree".to_string()))?;
+
+                    let range = tree_ranges[&ref_tree_id].clone();
+
+                    let node = create_tree_node_recursively(factory, s, range, tree_ranges)?
+                        .ok_or_else(|| BtError::Raw("no subtree node created".to_string()))?;
+
+                    if let Some(control_node) = control_nodes.front_mut() {
+                        control_node.add_child(node);
+                    } else {
+                        return Ok(Some(node));
+                    }
+                } else {
+                    println!("unknown element: {element_name}");
                 }
             }
             Ok(Event::End(e)) => {
@@ -233,34 +253,31 @@ pub fn from_str(factory: &Factory, s: &str) -> Result<()> {
 
     let mut ctx = Context::default();
 
-    for (id, tree_range) in tree_ranges {
-        let node = create_tree_node_recursively(factory, &s[tree_range.clone()])?;
-
-        if let Some(mut node) = node {
-            let node_type = node.node_type();
-
-            loop {
-                let res = node.tick(&mut ctx);
-
-                if res != NodeStatus::Running {
-                    break;
-                }
-            }
-
-            println!("debug: {}", node.debug_info());
-        }
-        println!("id= {id} content= {}", &s[tree_range]);
-    }
-
     let main_tree = if let Some(main_tree_id) = main_tree_id {
         tree_ranges.remove(&main_tree_id)
     } else {
         tree_ranges.drain().next().map(|a| a.1)
     };
 
-    let Some(main_tree) = main_tree else {
+    let Some(main_tree_range) = main_tree else {
         return Err(BtError::Raw("no main bt tree found".to_string()));
     };
+
+    let node = create_tree_node_recursively(factory, s, main_tree_range, &tree_ranges)?;
+
+    if let Some(mut node) = node {
+        let node_type = node.node_type();
+
+        loop {
+            let res = node.tick(&mut ctx);
+
+            if res != NodeStatus::Running {
+                break;
+            }
+        }
+
+        println!("debug: {}", node.debug_info());
+    }
 
     // let mut non_main_tree
 
@@ -302,8 +319,8 @@ mod test {
 
     const XML: &str = r#"
     <?xml version="1.0" encoding="UTF-8"?>
-    <root BTCPP_format="4">
-        <BehaviorTree ID="untitled">
+    <root BTCPP_format="4" main_tree_to_execute="main">
+        <BehaviorTree ID="main">
             <Sequence>
                 <PrintBody body="body"/>
                 <PrintArm arm="left_arm"/>
@@ -316,8 +333,19 @@ mod test {
                         <ForceSuccess>
                             <PrintBody body="{body}"/>
                         </ForceSuccess>
+                        <SubTree ID="bbb"/>
                     </Sequence>
                 </Sequence>
+            </Sequence>
+        </BehaviorTree>
+        <BehaviorTree ID="aaa">
+            <PrintBody body="body"/>
+        </BehaviorTree>
+        <BehaviorTree ID="bbb">
+            <Sequence>
+                <SubTree ID="aaa"/>
+                <PrintArm arm="arm"/>
+                <SubTree ID="aaa"/>
             </Sequence>
         </BehaviorTree>
     </root>"#;
