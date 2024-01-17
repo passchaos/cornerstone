@@ -43,6 +43,21 @@ impl TreeNode for ForceSuccess {
     fn node_type(&self) -> crate::NodeType {
         crate::NodeType::Decorator
     }
+
+    fn debug_info(&self) -> String {
+        let mut s = format!(
+            "Self: {:?} {}",
+            self.node_type(),
+            std::any::type_name_of_val(self)
+        );
+
+        s.push_str(&format!(
+            "\n\t=========>child= {}",
+            self.handle.node.debug_info()
+        ));
+
+        s
+    }
 }
 
 impl Decorator for ForceSuccess {

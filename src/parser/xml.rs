@@ -112,6 +112,9 @@ fn create_tree_node_recursively(factory: &Factory, s: &str) -> Result<Option<Box
                 } else if factory.decorator_types().contains(element_name) {
                     println!("decorator node");
 
+                    let e = reader.read_event()?;
+                    println!("event after decorator: {e:?}");
+
                     match reader.read_event()? {
                         Event::Start(e) | Event::Empty(e) => {
                             let node_name = e.name();
@@ -123,6 +126,8 @@ fn create_tree_node_recursively(factory: &Factory, s: &str) -> Result<Option<Box
                             else {
                                 continue;
                             };
+
+                            println!("has node: {node_element_name}");
 
                             let Some(node) =
                                 factory.build_decorator(element_name, wrapper.kv()?, node)
@@ -139,10 +144,10 @@ fn create_tree_node_recursively(factory: &Factory, s: &str) -> Result<Option<Box
                         _ => {}
                     }
 
-                    let new_range = reader.read_to_end(e.to_end().name())?;
+                    // let new_range = reader.read_to_end(e.to_end().name())?;
 
-                    let node = create_tree_node_recursively(factory, &s[new_range.clone()])?;
-                    println!("new range: {new_range:?} node= {}", node.is_none());
+                    // let node = create_tree_node_recursively(factory, &s[new_range.clone()])?;
+                    // println!("new range: {new_range:?} node= {}", node.is_none());
                 } else {
                     println!("leaf node: {element_name}");
                     let Some(node) = factory.build_action(element_name, wrapper.kv()?) else {
@@ -294,6 +299,12 @@ mod test {
                 <Sequence>
                     <PrintBody body="body"/>
                     <PrintArm arm="arm"/>
+                    <Sequence>
+                        <PrintArm arm="{arm}"/>
+                        <ForceSuccess>
+                            <PrintBody body="{body}"/>
+                        </ForceSuccess>
+                    </Sequence>
                 </Sequence>
             </Sequence>
         </BehaviorTree>
