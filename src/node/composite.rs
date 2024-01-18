@@ -46,7 +46,9 @@ impl TreeNode for Sequence {
                 NodeStatus::Running => {
                     return NodeStatus::Running;
                 }
-                NodeStatus::Success => (),
+                NodeStatus::Success => {
+                    self.current_child_idx += 1;
+                }
             }
         }
 
