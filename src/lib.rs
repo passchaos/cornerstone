@@ -1,3 +1,4 @@
+#![feature(trait_upcasting)]
 use std::{any::Any, collections::HashMap, sync::Arc};
 
 use thiserror::Error;
