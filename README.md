@@ -19,3 +19,7 @@ Cornerstone is inspired by many other crates out there, here's a few worth menti
   - [ ] Timeout
   - [ ] Retry
 - [x] Xml Parsing 
+- Observe
+  - [ ] record/replay
+  - [ ] visualize
+  - [ ] user pause/resume
