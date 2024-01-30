@@ -3,7 +3,9 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     node::{
         composite::{CompositeNode, Parallel, Selector, Sequence},
-        decorator::{Decorator, DecoratorNode, ForceSuccess, Repeat},
+        decorator::{
+            Decorator, DecoratorNode, ForceFailure, ForceSuccess, Inverter, Repeat, Retry,
+        },
     },
     DataProxy, TreeNode,
 };
@@ -114,7 +116,7 @@ impl Default for Factory {
         );
         fac.register_composite_type(
             "Parallel".to_string(),
-            boxify_composite(|_| Parallel::default()),
+            boxify_composite(|attrs| Parallel::new(attrs)),
         );
 
         fac.register_decorator_type(
@@ -122,11 +124,31 @@ impl Default for Factory {
             boxify_decorator(|_, node| ForceSuccess::new(DataProxy::default(), node)),
         );
         fac.register_decorator_type(
-            "Repeat".to_string(),
-            boxify_decorator(|map, node| Repeat::new(DataProxy::new(map), node)),
+            "ForceFailure".to_string(),
+            boxify_decorator(|_, node| ForceFailure::new(DataProxy::default(), node)),
         );
+        fac.register_decorator_type(
+            "Inverter".to_string(),
+            boxify_decorator(|attrs, node| {
+                let data_proxy = DataProxy::new(attrs);
+                Inverter::new(data_proxy, node)
+            }),
+        );
+        fac.register_decorator_type(
+            "Repeat".to_string(),
+            boxify_decorator(|attrs, node| {
+                let data_proxy = DataProxy::new(attrs);
+                Repeat::new(data_proxy, node)
+            }),
+        );
+        fac.register_decorator_type(
+            "RetryUntilSuccessful".to_string(),
+            boxify_decorator(|attrs, node| {
+                let data_proxy = DataProxy::new(attrs);
 
-        // fac.register_decorator_type("Repeat".to_string(), boxify_decorator(Repeat::))
+                Retry::new(data_proxy, node)
+            }),
+        );
 
         fac
     }

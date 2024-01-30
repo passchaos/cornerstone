@@ -1,5 +1,5 @@
 #![feature(trait_upcasting)]
-use std::{any::Any, collections::HashMap, sync::Arc};
+use std::{any::Any, collections::HashMap, str::FromStr, sync::Arc};
 
 use thiserror::Error;
 
@@ -111,5 +111,11 @@ impl DataProxy {
             },
             None => ctx.get(key),
         }
+    }
+
+    pub fn get_string_parsed<'a, T: FromStr>(&'a self, ctx: &'a Context, key: &str) -> Option<T> {
+        let a: Option<&String> = self.get(ctx, key);
+
+        a.and_then(|a| a.parse::<T>().ok())
     }
 }

@@ -12,12 +12,12 @@ Cornerstone is inspired by many other crates out there, here's a few worth menti
   - [ ] Switch
 - Decorator Node
   - [x] ForceSuccess
-  - [ ] ForceFailure
-  - [ ] Invert
+  - [x] ForceFailure
+  - [x] Invert
   - [x] Repeat
   - [x] Subtree
   - [ ] Timeout
-  - [ ] Retry
+  - [x] Retry
 - [x] Xml Parsing 
 - Observe
   - [ ] record/replay

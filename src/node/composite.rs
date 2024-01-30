@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::{Context, DataProxy, NodeStatus, TreeNode};
 
@@ -88,14 +88,20 @@ pub const PARALLEL_SUCCESS_COUNT: &str = "success_count";
 pub const PARALLEL_FAILURE_COUNT: &str = "failure_count";
 
 impl Parallel {
-    pub fn new(success_threshold: Option<usize>, failure_threshold: Option<usize>) -> Self {
+    pub fn new(ports_mapping: HashMap<String, String>) -> Self {
+        let data_proxy = DataProxy::new(ports_mapping);
+        let handle = CompositeHandle {
+            data_proxy,
+            ..Default::default()
+        };
+
         Self {
-            success_threshold,
-            failure_threshold,
+            success_threshold: None,
+            failure_threshold: None,
             success_count: 0,
             failure_count: 0,
             completed_list: HashSet::new(),
-            handle: CompositeHandle::default(),
+            handle,
         }
     }
 }
@@ -109,6 +115,18 @@ impl Composite for Parallel {
 impl TreeNode for Parallel {
     fn tick(&mut self, ctx: &mut Context) -> NodeStatus {
         let children_count = self.handle.child_nodes.len();
+
+        let success_threshold = self
+            .handle
+            .data_proxy
+            .get_string_parsed::<usize>(ctx, PARALLEL_SUCCESS_COUNT)
+            .unwrap_or(self.success_threshold.unwrap_or(children_count));
+
+        let failure_threshold = self
+            .handle
+            .data_proxy
+            .get_string_parsed::<usize>(ctx, PARALLEL_FAILURE_COUNT)
+            .unwrap_or(self.failure_threshold.unwrap_or(children_count));
 
         if children_count == 0 {
             return NodeStatus::Failure;
@@ -133,11 +151,11 @@ impl TreeNode for Parallel {
 
             self.completed_list.insert(i);
 
-            if self.success_count >= self.success_threshold.unwrap_or(children_count) {
+            if self.success_count >= success_threshold {
                 return NodeStatus::Success;
             }
 
-            if self.failure_count >= self.failure_threshold.unwrap_or(children_count) {
+            if self.failure_count >= failure_threshold {
                 return NodeStatus::Failure;
             }
         }

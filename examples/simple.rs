@@ -81,13 +81,13 @@ fn main() {
     let mut arms_root = Sequence::default();
 
     let mut left_ports = HashMap::new();
-    left_ports.insert("arm".to_string(), ProxyValue::Ref("left_arm".to_string()));
+    left_ports.insert("arm".to_string(), "{left_arm}".to_string());
     let left_arm = PrintArmNode {
         data_proxy: DataProxy::new(left_ports),
     };
 
     let mut right_ports = HashMap::new();
-    right_ports.insert("arm".to_string(), ProxyValue::Ref("right_arm".to_string()));
+    right_ports.insert("arm".to_string(), "{right_arm}".to_string());
     let right_arm = PrintArmNode {
         data_proxy: DataProxy::new(right_ports),
     };
@@ -103,7 +103,7 @@ fn main() {
         ProxyValue::Real(Box::new("10".to_string())),
     );
 
-    let mut root = Repeat::new(5, n_dp, Box::new(seq_root));
+    let mut root = Repeat::new_with_count(5, n_dp, Box::new(seq_root));
 
     loop {
         let status = root.tick(&mut ctx);
