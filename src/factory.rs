@@ -2,28 +2,35 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     node::{
-        composite::{CompositeNode, Parallel, Selector, Sequence},
+        composite::{
+            CompositeNode, CompositeNodeImpl, CompositeWrapper, Parallel, Selector, Sequence,
+            SequenceImpl,
+        },
         decorator::{
             Decorator, DecoratorNode, ForceFailure, ForceSuccess, Inverter, Repeat, Retry,
         },
     },
-    DataProxy, TreeNode, TreeNodeWrapper,
+    DataProxy, NodeWrapper, TreeNode, TreeNodeWrapper,
 };
 
 pub struct Factory {
-    composite_tcs: HashMap<String, Box<dyn Fn(Attrs) -> Box<dyn CompositeNode>>>,
+    composite_tcs: HashMap<String, Box<dyn Fn(Attrs) -> CompositeWrapper>>,
     decorator_tcs: HashMap<String, Box<dyn Fn(Attrs, Box<dyn TreeNode>) -> Box<dyn DecoratorNode>>>,
     action_node_tcs: HashMap<String, Box<dyn Fn(Attrs) -> Box<dyn TreeNode>>>,
 }
 
 type Attrs = HashMap<String, String>;
 
-fn boxify_composite<T, F>(cons: F) -> Box<dyn Fn(Attrs) -> Box<dyn CompositeNode>>
+fn boxify_composite<T, F>(cons: F) -> Box<dyn Fn(Attrs) -> CompositeWrapper>
 where
-    F: 'static + Fn(Attrs) -> T,
-    T: 'static + CompositeNode,
+    F: 'static + Fn(&Attrs) -> T,
+    T: 'static + CompositeNodeImpl,
 {
-    Box::new(move |attrs| Box::new(cons(attrs)))
+    Box::new(move |attrs| {
+        let node_wrapper = Box::new(cons(&attrs));
+
+        CompositeWrapper::new(attrs, node_wrapper)
+    })
 }
 
 fn boxify_decorator<T, F>(
@@ -60,7 +67,7 @@ impl Factory {
     fn register_composite_type(
         &mut self,
         type_name: String,
-        constructor: Box<dyn Fn(Attrs) -> Box<dyn CompositeNode>>,
+        constructor: Box<dyn Fn(Attrs) -> CompositeWrapper>,
     ) {
         self.composite_tcs.insert(type_name, constructor);
     }
@@ -80,7 +87,7 @@ impl Factory {
     ) {
         self.action_node_tcs.insert(type_name, constructor);
     }
-    pub fn build_composite(&self, type_name: &str, attrs: Attrs) -> Option<Box<dyn CompositeNode>> {
+    pub fn build_composite(&self, type_name: &str, attrs: Attrs) -> Option<CompositeWrapper> {
         self.composite_tcs.get(type_name).map(|c| c(attrs))
     }
 
@@ -93,14 +100,14 @@ impl Factory {
         self.decorator_tcs
             .get(type_name)
             .map(|c| c(attrs, node))
-            .map(|a| TreeNodeWrapper::Decorator(a))
+            .map(|a| TreeNodeWrapper::new(NodeWrapper::Decorator(a)))
     }
 
     pub fn build_action(&self, type_name: &str, attrs: Attrs) -> Option<TreeNodeWrapper> {
         self.action_node_tcs
             .get(type_name)
             .map(|c| c(attrs))
-            .map(|a| TreeNodeWrapper::Action(a))
+            .map(|a| TreeNodeWrapper::new(NodeWrapper::Action(a)))
     }
 }
 
@@ -114,16 +121,16 @@ impl Default for Factory {
 
         fac.register_composite_type(
             "Sequence".to_string(),
-            boxify_composite(|_| Sequence::default()),
+            boxify_composite(|_| SequenceImpl::default()),
         );
-        fac.register_composite_type(
-            "Fallback".to_string(),
-            boxify_composite(|_| Selector::default()),
-        );
-        fac.register_composite_type(
-            "Parallel".to_string(),
-            boxify_composite(|attrs| Parallel::new(attrs)),
-        );
+        // fac.register_composite_type(
+        //     "Fallback".to_string(),
+        //     boxify_composite(|_| Selector::default()),
+        // );
+        // fac.register_composite_type(
+        //     "Parallel".to_string(),
+        //     boxify_composite(|attrs| Parallel::new(attrs)),
+        // );
 
         fac.register_decorator_type(
             "ForceSuccess".to_string(),

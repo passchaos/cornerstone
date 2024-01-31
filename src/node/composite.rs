@@ -2,13 +2,14 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{Context, DataProxy, NodeStatus, TreeNode, TreeNodeWrapper};
 
-trait CompositeNodeImpl {
+pub trait CompositeNodeImpl {
     fn tick_status(
         &mut self,
         ctx: &mut Context,
         data_proxy: &mut DataProxy,
         child_nodes: &mut Vec<TreeNodeWrapper>,
     ) -> NodeStatus;
+    fn node_info(&self) -> String;
 }
 
 pub struct CompositeWrapper {
@@ -18,8 +19,32 @@ pub struct CompositeWrapper {
 }
 
 impl CompositeWrapper {
+    pub fn new(
+        ports_mapping: HashMap<String, String>,
+        node_wrapper: Box<dyn CompositeNodeImpl>,
+    ) -> Self {
+        let data_proxy = DataProxy::new(ports_mapping);
+
+        Self {
+            data_proxy,
+            node_wrapper,
+            child_nodes: vec![],
+        }
+    }
+
     pub fn add_child(&mut self, node: TreeNodeWrapper) {
         self.child_nodes.push(node);
+    }
+
+    pub fn node_info(&self) -> String {
+        let node_wrapper_info = self.node_wrapper.node_info();
+
+        let mut a = format!("{node_wrapper_info} child=");
+        for child_node in &self.child_nodes {
+            a.push_str(&child_node.node_info());
+        }
+
+        a
     }
 }
 
@@ -30,7 +55,8 @@ impl TreeNode for CompositeWrapper {
     }
 }
 
-struct SequenceImpl {
+#[derive(Default)]
+pub struct SequenceImpl {
     current_child_idx: usize,
 }
 
@@ -41,7 +67,27 @@ impl CompositeNodeImpl for SequenceImpl {
         data_proxy: &mut DataProxy,
         child_nodes: &mut Vec<TreeNodeWrapper>,
     ) -> NodeStatus {
+        let from = self.current_child_idx;
+
+        for node in child_nodes.iter_mut().skip(from) {
+            match node.tick(ctx) {
+                NodeStatus::Failure => {
+                    return NodeStatus::Failure;
+                }
+                NodeStatus::Running => {
+                    return NodeStatus::Running;
+                }
+                NodeStatus::Success => {
+                    self.current_child_idx += 1;
+                }
+            }
+        }
+
         NodeStatus::Success
+    }
+
+    fn node_info(&self) -> String {
+        format!("Sequence: current_child_idx= {}", self.current_child_idx)
     }
 }
 

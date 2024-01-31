@@ -1,7 +1,10 @@
 #![feature(trait_upcasting)]
 use std::{any::Any, collections::HashMap, str::FromStr, sync::Arc};
 
-use node::{composite::CompositeNode, decorator::DecoratorNode};
+use node::{
+    composite::{CompositeNode, CompositeWrapper},
+    decorator::DecoratorNode,
+};
 use thiserror::Error;
 
 pub mod factory;
@@ -51,28 +54,48 @@ pub enum NodeType {
     Action,
 }
 
-pub enum TreeNodeWrapper {
-    Composite(Box<dyn CompositeNode>),
+pub enum NodeWrapper {
+    Composite(CompositeWrapper),
     Decorator(Box<dyn DecoratorNode>),
     Action(Box<dyn TreeNode>),
 }
 
+pub struct TreeNodeWrapper {
+    pub uid: u32,
+    pub node_wrapper: NodeWrapper,
+}
+
 impl TreeNodeWrapper {
+    pub fn new(node_wrapper: NodeWrapper) -> Self {
+        Self {
+            uid: 0,
+            node_wrapper,
+        }
+    }
+
     pub fn node_type(&self) -> NodeType {
-        match self {
-            Self::Composite(_) => NodeType::Composite,
-            Self::Decorator(_) => NodeType::Decorator,
-            Self::Action(_) => NodeType::Action,
+        match self.node_wrapper {
+            NodeWrapper::Composite(_) => NodeType::Composite,
+            NodeWrapper::Decorator(_) => NodeType::Decorator,
+            NodeWrapper::Action(_) => NodeType::Action,
+        }
+    }
+
+    pub fn node_info(&self) -> String {
+        match &self.node_wrapper {
+            NodeWrapper::Composite(cp) => cp.node_info(),
+            NodeWrapper::Decorator(dr) => dr.debug_info(),
+            NodeWrapper::Action(tn) => tn.debug_info(),
         }
     }
 }
 
 impl TreeNode for TreeNodeWrapper {
     fn tick(&mut self, ctx: &mut Context) -> NodeStatus {
-        match self {
-            Self::Composite(cp) => cp.tick(ctx),
-            Self::Decorator(dn) => dn.tick(ctx),
-            Self::Action(tn) => tn.tick(ctx),
+        match &mut self.node_wrapper {
+            NodeWrapper::Composite(cp) => cp.tick(ctx),
+            NodeWrapper::Decorator(dn) => dn.tick(ctx),
+            NodeWrapper::Action(tn) => tn.tick(ctx),
         }
     }
 }

@@ -11,7 +11,7 @@ use std::{
 use crate::{
     factory::{self, Factory},
     node::composite::{Composite, CompositeNode},
-    BtError, Context, NodeStatus, NodeType, Result, TreeNode, TreeNodeWrapper,
+    BtError, Context, NodeStatus, NodeType, NodeWrapper, Result, TreeNode, TreeNodeWrapper,
 };
 use quick_xml::{
     events::{attributes::Attributes, BytesStart, Event},
@@ -124,7 +124,7 @@ fn create_tree_node_recursively(
                             };
 
                             if let Some(control_node) = control_nodes.front_mut() {
-                                control_node.add_child(Box::new(node));
+                                control_node.add_child(node);
                             } else {
                                 return Ok(Some(node));
                             }
@@ -140,7 +140,7 @@ fn create_tree_node_recursively(
                     };
 
                     if let Some(control_node) = control_nodes.front_mut() {
-                        control_node.add_child(Box::new(node));
+                        control_node.add_child(node);
                     } else {
                         return Ok(Some(node));
                     }
@@ -166,7 +166,7 @@ fn create_tree_node_recursively(
                     .ok_or_else(|| BtError::Raw("no subtree node created".to_string()))?;
 
                     if let Some(control_node) = control_nodes.front_mut() {
-                        control_node.add_child(Box::new(node));
+                        control_node.add_child(node);
                     } else {
                         return Ok(Some(node));
                     }
@@ -181,9 +181,13 @@ fn create_tree_node_recursively(
                 if factory.composite_types().contains(element_name) {
                     if let Some(control_node) = control_nodes.pop_front() {
                         if let Some(parent_control_node) = control_nodes.front_mut() {
-                            parent_control_node.add_child(control_node);
+                            parent_control_node.add_child(TreeNodeWrapper::new(
+                                NodeWrapper::Composite(control_node),
+                            ));
                         } else {
-                            return Ok(Some(TreeNodeWrapper::Composite(control_node)));
+                            return Ok(Some(TreeNodeWrapper::new(NodeWrapper::Composite(
+                                control_node,
+                            ))));
                         }
                     } else {
                         tracing::warn!("unexpected end: {element_name}");
@@ -348,9 +352,9 @@ mod test {
         tracing::info!("node: {}", node.is_some());
 
         if let Some(mut node) = node {
-            tracing::info!("node debug info: {}", node.debug_info());
+            tracing::info!("node debug info: {}", node.node_info());
 
-            if let TreeNodeWrapper::Composite(cp) = &node {
+            if let NodeWrapper::Composite(cp) = &node.node_wrapper {
                 tracing::info!("composite note");
                 // tracing::info!("has control node: name= {}", control_node.debug_info());
             }
