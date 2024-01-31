@@ -113,15 +113,15 @@ fn create_tree_node_recursively(
 
                             tracing::trace!("has node: {node_element_name}");
 
-                            let Some(node) = factory.build_decorator(
-                                element_name,
-                                wrapper.kv()?,
-                                Box::new(node),
-                            ) else {
+                            let Some(node) =
+                                factory.build_decorator(element_name, wrapper.kv()?, node)
+                            else {
                                 tracing::warn!("can't create node: element_name= {element_name}");
 
                                 continue;
                             };
+
+                            let node = TreeNodeWrapper::new(NodeWrapper::Decorator(node));
 
                             if let Some(control_node) = control_nodes.front_mut() {
                                 control_node.add_child(node);

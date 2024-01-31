@@ -3,7 +3,7 @@ use std::{any::Any, collections::HashMap, str::FromStr, sync::Arc};
 
 use node::{
     composite::{CompositeNode, CompositeWrapper},
-    decorator::DecoratorNode,
+    decorator::{DecoratorNode, DecoratorWrapper},
 };
 use thiserror::Error;
 
@@ -56,7 +56,7 @@ pub enum NodeType {
 
 pub enum NodeWrapper {
     Composite(CompositeWrapper),
-    Decorator(Box<dyn DecoratorNode>),
+    Decorator(DecoratorWrapper),
     Action(Box<dyn TreeNode>),
 }
 
@@ -84,7 +84,7 @@ impl TreeNodeWrapper {
     pub fn node_info(&self) -> String {
         match &self.node_wrapper {
             NodeWrapper::Composite(cp) => cp.node_info(),
-            NodeWrapper::Decorator(dr) => dr.debug_info(),
+            NodeWrapper::Decorator(dr) => dr.node_info(),
             NodeWrapper::Action(tn) => tn.debug_info(),
         }
     }

@@ -1,4 +1,58 @@
-use crate::{Context, DataProxy, NodeStatus, TreeNode};
+use std::collections::HashMap;
+
+use crate::{Context, DataProxy, NodeStatus, TreeNode, TreeNodeWrapper};
+
+pub trait DecoratorNodeImpl {
+    fn tick_status(
+        &mut self,
+        ctx: &mut Context,
+        data_proxy: &mut DataProxy,
+        inner_node: &mut TreeNodeWrapper,
+    ) -> NodeStatus;
+    fn node_info(&self) -> String {
+        format!("{}", std::any::type_name_of_val(self))
+    }
+}
+
+pub struct DecoratorWrapper {
+    data_proxy: DataProxy,
+    node_wrapper: Box<dyn DecoratorNodeImpl>,
+    inner_node: Box<TreeNodeWrapper>,
+}
+
+impl TreeNode for DecoratorWrapper {
+    fn tick(&mut self, ctx: &mut Context) -> NodeStatus {
+        self.node_wrapper
+            .tick_status(ctx, &mut self.data_proxy, &mut self.inner_node)
+    }
+}
+
+impl DecoratorWrapper {
+    pub fn new(
+        ports_mapping: HashMap<String, String>,
+        node_wrapper: Box<dyn DecoratorNodeImpl>,
+        inner_node: TreeNodeWrapper,
+    ) -> Self {
+        let data_proxy = DataProxy::new(ports_mapping);
+
+        Self {
+            data_proxy,
+            node_wrapper,
+            inner_node: Box::new(inner_node),
+        }
+    }
+
+    pub fn node_info(&self) -> String {
+        let mut s = format!(
+            "Decorator: {}",
+            std::any::type_name_of_val(&self.node_wrapper)
+        );
+
+        let inner_node_info = self.inner_node.node_info();
+
+        format!("{s} | inner= {inner_node_info}")
+    }
+}
 
 pub trait Decorator {
     fn new(data_proxy: DataProxy, node: Box<dyn TreeNode>) -> Self
@@ -23,6 +77,23 @@ impl Decorator for DecoratorNodeHandle {
 pub trait DecoratorNode: TreeNode + Decorator {}
 
 impl<T> DecoratorNode for T where T: TreeNode + Decorator {}
+
+#[derive(Default)]
+pub struct ForceSuccessImpl;
+
+impl DecoratorNodeImpl for ForceSuccessImpl {
+    fn tick_status(
+        &mut self,
+        ctx: &mut Context,
+        data_proxy: &mut DataProxy,
+        inner_node: &mut TreeNodeWrapper,
+    ) -> NodeStatus {
+        match inner_node.tick(ctx) {
+            NodeStatus::Running => NodeStatus::Running,
+            _ => NodeStatus::Success,
+        }
+    }
+}
 
 pub struct ForceSuccess {
     handle: DecoratorNodeHandle,

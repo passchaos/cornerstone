@@ -7,7 +7,8 @@ use crate::{
             SequenceImpl,
         },
         decorator::{
-            Decorator, DecoratorNode, ForceFailure, ForceSuccess, Inverter, Repeat, Retry,
+            Decorator, DecoratorNode, DecoratorNodeImpl, DecoratorWrapper, ForceFailure,
+            ForceSuccess, ForceSuccessImpl, Inverter, Repeat, Retry,
         },
     },
     DataProxy, NodeWrapper, TreeNode, TreeNodeWrapper,
@@ -15,7 +16,7 @@ use crate::{
 
 pub struct Factory {
     composite_tcs: HashMap<String, Box<dyn Fn(Attrs) -> CompositeWrapper>>,
-    decorator_tcs: HashMap<String, Box<dyn Fn(Attrs, Box<dyn TreeNode>) -> Box<dyn DecoratorNode>>>,
+    decorator_tcs: HashMap<String, Box<dyn Fn(Attrs, TreeNodeWrapper) -> DecoratorWrapper>>,
     action_node_tcs: HashMap<String, Box<dyn Fn(Attrs) -> Box<dyn TreeNode>>>,
 }
 
@@ -33,14 +34,15 @@ where
     })
 }
 
-fn boxify_decorator<T, F>(
-    cons: F,
-) -> Box<dyn Fn(Attrs, Box<dyn TreeNode>) -> Box<dyn DecoratorNode>>
+fn boxify_decorator<T, F>(cons: F) -> Box<dyn Fn(Attrs, TreeNodeWrapper) -> DecoratorWrapper>
 where
-    F: 'static + Fn(Attrs, Box<dyn TreeNode>) -> T,
-    T: 'static + DecoratorNode,
+    F: 'static + Fn(&Attrs) -> T,
+    T: 'static + DecoratorNodeImpl,
 {
-    Box::new(move |attrs, child| Box::new(cons(attrs, child)))
+    Box::new(move |attrs, inner_node| {
+        let node_wrapper = Box::new(cons(&attrs));
+        DecoratorWrapper::new(attrs, node_wrapper, inner_node)
+    })
 }
 
 pub fn boxify_action<T, F>(cons: F) -> Box<dyn Fn(Attrs) -> Box<dyn TreeNode>>
@@ -75,7 +77,7 @@ impl Factory {
     fn register_decorator_type(
         &mut self,
         type_name: String,
-        constructor: Box<dyn Fn(Attrs, Box<dyn TreeNode>) -> Box<dyn DecoratorNode>>,
+        constructor: Box<dyn Fn(Attrs, TreeNodeWrapper) -> DecoratorWrapper>,
     ) {
         self.decorator_tcs.insert(type_name, constructor);
     }
@@ -95,12 +97,9 @@ impl Factory {
         &self,
         type_name: &str,
         attrs: Attrs,
-        node: Box<dyn TreeNode>,
-    ) -> Option<TreeNodeWrapper> {
-        self.decorator_tcs
-            .get(type_name)
-            .map(|c| c(attrs, node))
-            .map(|a| TreeNodeWrapper::new(NodeWrapper::Decorator(a)))
+        node: TreeNodeWrapper,
+    ) -> Option<DecoratorWrapper> {
+        self.decorator_tcs.get(type_name).map(|c| c(attrs, node))
     }
 
     pub fn build_action(&self, type_name: &str, attrs: Attrs) -> Option<TreeNodeWrapper> {
@@ -134,34 +133,34 @@ impl Default for Factory {
 
         fac.register_decorator_type(
             "ForceSuccess".to_string(),
-            boxify_decorator(|_, node| ForceSuccess::new(DataProxy::default(), node)),
+            boxify_decorator(|_| ForceSuccessImpl::default()),
         );
-        fac.register_decorator_type(
-            "ForceFailure".to_string(),
-            boxify_decorator(|_, node| ForceFailure::new(DataProxy::default(), node)),
-        );
-        fac.register_decorator_type(
-            "Inverter".to_string(),
-            boxify_decorator(|attrs, node| {
-                let data_proxy = DataProxy::new(attrs);
-                Inverter::new(data_proxy, node)
-            }),
-        );
-        fac.register_decorator_type(
-            "Repeat".to_string(),
-            boxify_decorator(|attrs, node| {
-                let data_proxy = DataProxy::new(attrs);
-                Repeat::new(data_proxy, node)
-            }),
-        );
-        fac.register_decorator_type(
-            "RetryUntilSuccessful".to_string(),
-            boxify_decorator(|attrs, node| {
-                let data_proxy = DataProxy::new(attrs);
+        // fac.register_decorator_type(
+        //     "ForceFailure".to_string(),
+        //     boxify_decorator(|_| ForceFailure::new(DataProxy::default())),
+        // );
+        // fac.register_decorator_type(
+        //     "Inverter".to_string(),
+        //     boxify_decorator(|attrs, node| {
+        //         let data_proxy = DataProxy::new(attrs);
+        //         Inverter::new(data_proxy, node)
+        //     }),
+        // );
+        // fac.register_decorator_type(
+        //     "Repeat".to_string(),
+        //     boxify_decorator(|attrs, node| {
+        //         let data_proxy = DataProxy::new(attrs);
+        //         Repeat::new(data_proxy, node)
+        //     }),
+        // );
+        // fac.register_decorator_type(
+        //     "RetryUntilSuccessful".to_string(),
+        //     boxify_decorator(|attrs, node| {
+        //         let data_proxy = DataProxy::new(attrs);
 
-                Retry::new(data_proxy, node)
-            }),
-        );
+        //         Retry::new(data_proxy, node)
+        //     }),
+        // );
 
         fac
     }
