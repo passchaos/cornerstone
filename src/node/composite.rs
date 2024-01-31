@@ -1,6 +1,49 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{Context, DataProxy, NodeStatus, TreeNode};
+use crate::{Context, DataProxy, NodeStatus, TreeNode, TreeNodeWrapper};
+
+trait CompositeNodeImpl {
+    fn tick_status(
+        &mut self,
+        ctx: &mut Context,
+        data_proxy: &mut DataProxy,
+        child_nodes: &mut Vec<TreeNodeWrapper>,
+    ) -> NodeStatus;
+}
+
+pub struct CompositeWrapper {
+    data_proxy: DataProxy,
+    node_wrapper: Box<dyn CompositeNodeImpl>,
+    child_nodes: Vec<TreeNodeWrapper>,
+}
+
+impl CompositeWrapper {
+    pub fn add_child(&mut self, node: TreeNodeWrapper) {
+        self.child_nodes.push(node);
+    }
+}
+
+impl TreeNode for CompositeWrapper {
+    fn tick(&mut self, ctx: &mut Context) -> NodeStatus {
+        self.node_wrapper
+            .tick_status(ctx, &mut self.data_proxy, &mut self.child_nodes)
+    }
+}
+
+struct SequenceImpl {
+    current_child_idx: usize,
+}
+
+impl CompositeNodeImpl for SequenceImpl {
+    fn tick_status(
+        &mut self,
+        ctx: &mut Context,
+        data_proxy: &mut DataProxy,
+        child_nodes: &mut Vec<TreeNodeWrapper>,
+    ) -> NodeStatus {
+        NodeStatus::Success
+    }
+}
 
 pub trait Composite {
     fn add_child(&mut self, node: Box<dyn TreeNode>);

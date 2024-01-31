@@ -7,7 +7,7 @@ use crate::{
             Decorator, DecoratorNode, ForceFailure, ForceSuccess, Inverter, Repeat, Retry,
         },
     },
-    DataProxy, TreeNode,
+    DataProxy, TreeNode, TreeNodeWrapper,
 };
 
 pub struct Factory {
@@ -89,12 +89,18 @@ impl Factory {
         type_name: &str,
         attrs: Attrs,
         node: Box<dyn TreeNode>,
-    ) -> Option<Box<dyn DecoratorNode>> {
-        self.decorator_tcs.get(type_name).map(|c| c(attrs, node))
+    ) -> Option<TreeNodeWrapper> {
+        self.decorator_tcs
+            .get(type_name)
+            .map(|c| c(attrs, node))
+            .map(|a| TreeNodeWrapper::Decorator(a))
     }
 
-    pub fn build_action(&self, type_name: &str, attrs: Attrs) -> Option<Box<dyn TreeNode>> {
-        self.action_node_tcs.get(type_name).map(|c| c(attrs))
+    pub fn build_action(&self, type_name: &str, attrs: Attrs) -> Option<TreeNodeWrapper> {
+        self.action_node_tcs
+            .get(type_name)
+            .map(|c| c(attrs))
+            .map(|a| TreeNodeWrapper::Action(a))
     }
 }
 

@@ -5,12 +5,13 @@ use std::{
     hash::Hash,
     ops::Range,
     str::FromStr,
+    sync::atomic::AtomicU16,
 };
 
 use crate::{
     factory::{self, Factory},
     node::composite::{Composite, CompositeNode},
-    BtError, Context, NodeStatus, NodeType, Result, TreeNode,
+    BtError, Context, NodeStatus, NodeType, Result, TreeNode, TreeNodeWrapper,
 };
 use quick_xml::{
     events::{attributes::Attributes, BytesStart, Event},
@@ -64,7 +65,8 @@ fn create_tree_node_recursively(
     s: &str,
     check_range: Range<usize>,
     tree_ranges: &HashMap<String, Range<usize>>,
-) -> Result<Option<Box<dyn TreeNode>>> {
+    uid_generator: &AtomicU16,
+) -> Result<Option<TreeNodeWrapper>> {
     tracing::trace!("input: root_str= {s} check_range= {check_range:?}");
     let mut reader = Reader::from_str(&s[check_range]);
 
@@ -111,16 +113,18 @@ fn create_tree_node_recursively(
 
                             tracing::trace!("has node: {node_element_name}");
 
-                            let Some(node) =
-                                factory.build_decorator(element_name, wrapper.kv()?, node)
-                            else {
+                            let Some(node) = factory.build_decorator(
+                                element_name,
+                                wrapper.kv()?,
+                                Box::new(node),
+                            ) else {
                                 tracing::warn!("can't create node: element_name= {element_name}");
 
                                 continue;
                             };
 
                             if let Some(control_node) = control_nodes.front_mut() {
-                                control_node.add_child(node);
+                                control_node.add_child(Box::new(node));
                             } else {
                                 return Ok(Some(node));
                             }
@@ -136,7 +140,7 @@ fn create_tree_node_recursively(
                     };
 
                     if let Some(control_node) = control_nodes.front_mut() {
-                        control_node.add_child(node);
+                        control_node.add_child(Box::new(node));
                     } else {
                         return Ok(Some(node));
                     }
@@ -152,11 +156,17 @@ fn create_tree_node_recursively(
 
                     let range = tree_ranges[&ref_tree_id].clone();
 
-                    let node = create_tree_node_recursively(factory, s, range, tree_ranges)?
-                        .ok_or_else(|| BtError::Raw("no subtree node created".to_string()))?;
+                    let node = create_tree_node_recursively(
+                        factory,
+                        s,
+                        range,
+                        tree_ranges,
+                        uid_generator,
+                    )?
+                    .ok_or_else(|| BtError::Raw("no subtree node created".to_string()))?;
 
                     if let Some(control_node) = control_nodes.front_mut() {
-                        control_node.add_child(node);
+                        control_node.add_child(Box::new(node));
                     } else {
                         return Ok(Some(node));
                     }
@@ -173,7 +183,7 @@ fn create_tree_node_recursively(
                         if let Some(parent_control_node) = control_nodes.front_mut() {
                             parent_control_node.add_child(control_node);
                         } else {
-                            return Ok(Some(control_node));
+                            return Ok(Some(TreeNodeWrapper::Composite(control_node)));
                         }
                     } else {
                         tracing::warn!("unexpected end: {element_name}");
@@ -188,10 +198,7 @@ fn create_tree_node_recursively(
     Ok(None)
 }
 
-pub fn create_bt_tree_from_xml_str(
-    factory: &Factory,
-    s: &str,
-) -> Result<Option<Box<dyn TreeNode>>> {
+pub fn create_bt_tree_from_xml_str(factory: &Factory, s: &str) -> Result<Option<TreeNodeWrapper>> {
     let mut reader = Reader::from_str(s);
     reader.trim_text(true);
 
@@ -247,7 +254,13 @@ pub fn create_bt_tree_from_xml_str(
         return Err(BtError::Raw("no main bt tree found".to_string()));
     };
 
-    let node = create_tree_node_recursively(factory, s, main_tree_range, &tree_ranges)?;
+    let node = create_tree_node_recursively(
+        factory,
+        s,
+        main_tree_range,
+        &tree_ranges,
+        &AtomicU16::new(0),
+    )?;
 
     Ok(node)
 }
@@ -256,7 +269,7 @@ pub fn create_bt_tree_from_xml_str(
 mod test {
     use std::path::PathBuf;
 
-    use crate::{factory::boxify_action, NodeStatus};
+    use crate::{factory::boxify_action, node::composite::Sequence, NodeStatus};
 
     use super::*;
 
@@ -329,12 +342,18 @@ mod test {
         xml_path.push("full.xml");
 
         let xml_str = std::fs::read_to_string(xml_path).unwrap();
-        // let xml_str = XML;
 
         let node = create_bt_tree_from_xml_str(&factory, &xml_str).unwrap();
 
+        tracing::info!("node: {}", node.is_some());
+
         if let Some(mut node) = node {
             tracing::info!("node debug info: {}", node.debug_info());
+
+            if let TreeNodeWrapper::Composite(cp) = &node {
+                tracing::info!("composite note");
+                // tracing::info!("has control node: name= {}", control_node.debug_info());
+            }
 
             let mut ctx = Context::default();
 
