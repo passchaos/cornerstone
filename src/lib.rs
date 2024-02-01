@@ -2,7 +2,7 @@
 use std::{any::Any, collections::HashMap, str::FromStr, sync::Arc};
 
 use node::{
-    composite::{CompositeNode, CompositeWrapper},
+    composite::CompositeWrapper,
     decorator::{DecoratorNode, DecoratorWrapper},
 };
 use thiserror::Error;

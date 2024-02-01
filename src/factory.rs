@@ -2,10 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     node::{
-        composite::{
-            CompositeNode, CompositeNodeImpl, CompositeWrapper, Parallel, Selector, Sequence,
-            SequenceImpl,
-        },
+        composite::{CompositeNodeImpl, CompositeWrapper, Parallel, Selector, Sequence},
         decorator::{
             Decorator, DecoratorNode, DecoratorNodeImpl, DecoratorWrapper, ForceFailure,
             ForceSuccess, ForceSuccessImpl, Inverter, Repeat, Retry,
@@ -120,7 +117,7 @@ impl Default for Factory {
 
         fac.register_composite_type(
             "Sequence".to_string(),
-            boxify_composite(|_| SequenceImpl::default()),
+            boxify_composite(|_| Sequence::default()),
         );
         // fac.register_composite_type(
         //     "Fallback".to_string(),

@@ -10,7 +10,6 @@ use std::{
 
 use crate::{
     factory::{self, Factory},
-    node::composite::{Composite, CompositeNode},
     BtError, Context, NodeStatus, NodeType, NodeWrapper, Result, TreeNode, TreeNodeWrapper,
 };
 use quick_xml::{
