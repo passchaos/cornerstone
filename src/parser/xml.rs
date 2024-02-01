@@ -50,7 +50,7 @@ impl<'a> AttributesWrapper<'a> {
     }
 }
 
-// 只有action节点才是叶子节点
+// only the action nodes leaf nodes
 fn create_tree_node_recursively(
     factory: &Factory,
     s: &str,
