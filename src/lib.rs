@@ -1,10 +1,7 @@
 #![feature(trait_upcasting)]
 use std::{any::Any, collections::HashMap, str::FromStr, sync::Arc};
 
-use node::{
-    composite::CompositeWrapper,
-    decorator::{DecoratorNode, DecoratorWrapper},
-};
+use node::{composite::CompositeWrapper, decorator::DecoratorWrapper};
 use thiserror::Error;
 
 pub mod factory;

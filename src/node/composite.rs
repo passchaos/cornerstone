@@ -41,8 +41,9 @@ impl CompositeWrapper {
     pub fn node_info(&self) -> String {
         let node_wrapper_info = self.node_wrapper.node_info();
 
-        let mut a = format!("{node_wrapper_info} child=");
+        let mut a = format!("Composite {node_wrapper_info} child=");
         for child_node in &self.child_nodes {
+            a.push_str("\n\t\t>>>");
             a.push_str(&child_node.node_info());
         }
 

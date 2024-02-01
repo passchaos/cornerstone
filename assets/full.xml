@@ -21,7 +21,7 @@
       <PrintBody body="abcdefg"/>
       <PrintArm arm="left_arm"/>
       <PrintArm arm="right_arm"/>
-      <PrintBb bb=""/>
+      <PrintBody bb=""/>
       <Fallback>
         <PrintArm arm="arm_in"/>
         <PrintBody body="abcdefg"/>

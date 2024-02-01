@@ -1,20 +1,12 @@
 use std::{
-    any::Any,
     collections::{HashMap, VecDeque},
-    fs::read,
-    hash::Hash,
     ops::Range,
-    str::FromStr,
     sync::atomic::AtomicU16,
 };
 
-use crate::{
-    factory::{self, Factory},
-    BtError, Context, NodeStatus, NodeType, NodeWrapper, Result, TreeNode, TreeNodeWrapper,
-};
+use crate::{factory::Factory, BtError, Context, NodeWrapper, Result, TreeNode, TreeNodeWrapper};
 use quick_xml::{
-    events::{attributes::Attributes, BytesStart, Event},
-    name::{self, QName},
+    events::{attributes::Attributes, Event},
     Reader,
 };
 
@@ -272,7 +264,7 @@ pub fn create_bt_tree_from_xml_str(factory: &Factory, s: &str) -> Result<Option<
 mod test {
     use std::path::PathBuf;
 
-    use crate::{factory::boxify_action, node::composite::Sequence, NodeStatus};
+    use crate::{factory::boxify_action, NodeStatus};
 
     use super::*;
 

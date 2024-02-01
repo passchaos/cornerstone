@@ -4,11 +4,11 @@ use crate::{
     node::{
         composite::{CompositeNodeImpl, CompositeWrapper, Parallel, Selector, Sequence},
         decorator::{
-            Decorator, DecoratorNode, DecoratorNodeImpl, DecoratorWrapper, ForceFailure,
-            ForceSuccess, ForceSuccessImpl, Inverter, Repeat, Retry,
+            DecoratorNodeImpl, DecoratorWrapper, ForceFailure, ForceSuccess, Inverter, Repeat,
+            Retry,
         },
     },
-    DataProxy, NodeWrapper, TreeNode, TreeNodeWrapper,
+    NodeWrapper, TreeNode, TreeNodeWrapper,
 };
 
 pub struct Factory {
@@ -119,45 +119,35 @@ impl Default for Factory {
             "Sequence".to_string(),
             boxify_composite(|_| Sequence::default()),
         );
-        // fac.register_composite_type(
-        //     "Fallback".to_string(),
-        //     boxify_composite(|_| Selector::default()),
-        // );
-        // fac.register_composite_type(
-        //     "Parallel".to_string(),
-        //     boxify_composite(|attrs| Parallel::new(attrs)),
-        // );
+        fac.register_composite_type(
+            "Fallback".to_string(),
+            boxify_composite(|_| Selector::default()),
+        );
+        fac.register_composite_type(
+            "Parallel".to_string(),
+            boxify_composite(|_| Parallel::default()),
+        );
 
         fac.register_decorator_type(
             "ForceSuccess".to_string(),
-            boxify_decorator(|_| ForceSuccessImpl::default()),
+            boxify_decorator(|_| ForceSuccess::default()),
         );
-        // fac.register_decorator_type(
-        //     "ForceFailure".to_string(),
-        //     boxify_decorator(|_| ForceFailure::new(DataProxy::default())),
-        // );
-        // fac.register_decorator_type(
-        //     "Inverter".to_string(),
-        //     boxify_decorator(|attrs, node| {
-        //         let data_proxy = DataProxy::new(attrs);
-        //         Inverter::new(data_proxy, node)
-        //     }),
-        // );
-        // fac.register_decorator_type(
-        //     "Repeat".to_string(),
-        //     boxify_decorator(|attrs, node| {
-        //         let data_proxy = DataProxy::new(attrs);
-        //         Repeat::new(data_proxy, node)
-        //     }),
-        // );
-        // fac.register_decorator_type(
-        //     "RetryUntilSuccessful".to_string(),
-        //     boxify_decorator(|attrs, node| {
-        //         let data_proxy = DataProxy::new(attrs);
-
-        //         Retry::new(data_proxy, node)
-        //     }),
-        // );
+        fac.register_decorator_type(
+            "ForceFailure".to_string(),
+            boxify_decorator(|_| ForceFailure::default()),
+        );
+        fac.register_decorator_type(
+            "Inverter".to_string(),
+            boxify_decorator(|_| Inverter::default()),
+        );
+        fac.register_decorator_type(
+            "Repeat".to_string(),
+            boxify_decorator(|_| Repeat::default()),
+        );
+        fac.register_decorator_type(
+            "RetryUntilSuccessful".to_string(),
+            boxify_decorator(|_| Retry::default()),
+        );
 
         fac
     }
