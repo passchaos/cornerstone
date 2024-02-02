@@ -17,7 +17,7 @@ pub trait DecoratorNodeImpl {
 pub struct DecoratorWrapper {
     data_proxy: DataProxy,
     node_wrapper: Box<dyn DecoratorNodeImpl>,
-    inner_node: Box<TreeNodeWrapper>,
+    pub inner_node: Box<TreeNodeWrapper>,
 }
 
 impl TreeNode for DecoratorWrapper {

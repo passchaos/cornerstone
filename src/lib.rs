@@ -1,4 +1,3 @@
-#![feature(trait_upcasting)]
 use std::{any::Any, collections::HashMap, str::FromStr, sync::Arc};
 
 use node::{composite::CompositeWrapper, decorator::DecoratorWrapper};
@@ -58,7 +57,7 @@ pub enum NodeWrapper {
 }
 
 pub struct TreeNodeWrapper {
-    pub uid: u32,
+    pub uid: u16,
     pub node_wrapper: NodeWrapper,
 }
 
@@ -79,11 +78,13 @@ impl TreeNodeWrapper {
     }
 
     pub fn node_info(&self) -> String {
-        match &self.node_wrapper {
+        let a = match &self.node_wrapper {
             NodeWrapper::Composite(cp) => cp.node_info(),
             NodeWrapper::Decorator(dr) => dr.node_info(),
             NodeWrapper::Action(tn) => tn.debug_info(),
-        }
+        };
+
+        format!("uid= {} {a}", self.uid)
     }
 }
 
@@ -99,16 +100,8 @@ impl TreeNode for TreeNodeWrapper {
 
 pub trait TreeNode: Any {
     fn tick(&mut self, ctx: &mut Context) -> NodeStatus;
-    fn node_type(&self) -> NodeType {
-        NodeType::Action
-    }
-
     fn debug_info(&self) -> String {
-        format!(
-            "{:?} {}",
-            self.node_type(),
-            std::any::type_name_of_val(self)
-        )
+        format!("Action {}", std::any::type_name::<Self>())
     }
 }
 

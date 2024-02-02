@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, VecDeque},
     ops::Range,
-    sync::atomic::AtomicU16,
+    sync::atomic::{AtomicU16, Ordering},
 };
 
 use crate::{factory::Factory, BtError, Context, NodeWrapper, Result, TreeNode, TreeNodeWrapper};
@@ -81,7 +81,7 @@ fn create_tree_node_recursively(
                         continue;
                     };
 
-                    control_nodes.push_front(node);
+                    control_nodes.push_front((node, uid_generator.fetch_add(1, Ordering::SeqCst)));
                 } else if factory.decorator_types().contains(element_name) {
                     tracing::trace!("decorator node");
 
@@ -104,7 +104,7 @@ fn create_tree_node_recursively(
 
                             tracing::trace!("has node: {node_element_name}");
 
-                            let Some(node) =
+                            let Some(mut decorator_node) =
                                 factory.build_decorator(element_name, wrapper.kv()?, node)
                             else {
                                 tracing::warn!("can't create node: element_name= {element_name}");
@@ -112,9 +112,15 @@ fn create_tree_node_recursively(
                                 continue;
                             };
 
-                            let node = TreeNodeWrapper::new(NodeWrapper::Decorator(node));
+                            let decorator_uid = uid_generator.fetch_add(1, Ordering::SeqCst);
+                            let inner_node_uid = uid_generator.fetch_add(1, Ordering::SeqCst);
+                            decorator_node.inner_node.uid = inner_node_uid;
 
-                            if let Some(control_node) = control_nodes.front_mut() {
+                            let mut node =
+                                TreeNodeWrapper::new(NodeWrapper::Decorator(decorator_node));
+                            node.uid = decorator_uid;
+
+                            if let Some((control_node, _)) = control_nodes.front_mut() {
                                 control_node.add_child(node);
                             } else {
                                 return Ok(Some(node));
@@ -124,13 +130,15 @@ fn create_tree_node_recursively(
                     }
                 } else if factory.action_node_types().contains(element_name) {
                     tracing::trace!("leaf node: {element_name}");
-                    let Some(node) = factory.build_action(element_name, wrapper.kv()?) else {
+                    let Some(mut node) = factory.build_action(element_name, wrapper.kv()?) else {
                         tracing::warn!("can't create node: element_name= {element_name}");
 
                         continue;
                     };
 
-                    if let Some(control_node) = control_nodes.front_mut() {
+                    node.uid = uid_generator.fetch_add(1, Ordering::SeqCst);
+
+                    if let Some((control_node, _)) = control_nodes.front_mut() {
                         control_node.add_child(node);
                     } else {
                         return Ok(Some(node));
@@ -156,7 +164,7 @@ fn create_tree_node_recursively(
                     )?
                     .ok_or_else(|| BtError::Raw("no subtree node created".to_string()))?;
 
-                    if let Some(control_node) = control_nodes.front_mut() {
+                    if let Some((control_node, _)) = control_nodes.front_mut() {
                         control_node.add_child(node);
                     } else {
                         return Ok(Some(node));
@@ -170,15 +178,15 @@ fn create_tree_node_recursively(
                 let element_name = std::str::from_utf8(name.as_ref())?;
 
                 if factory.composite_types().contains(element_name) {
-                    if let Some(control_node) = control_nodes.pop_front() {
-                        if let Some(parent_control_node) = control_nodes.front_mut() {
-                            parent_control_node.add_child(TreeNodeWrapper::new(
-                                NodeWrapper::Composite(control_node),
-                            ));
+                    if let Some((control_node, uid)) = control_nodes.pop_front() {
+                        let mut control_node_wrapper =
+                            TreeNodeWrapper::new(NodeWrapper::Composite(control_node));
+                        control_node_wrapper.uid = uid;
+
+                        if let Some((parent_control_node, _)) = control_nodes.front_mut() {
+                            parent_control_node.add_child(control_node_wrapper);
                         } else {
-                            return Ok(Some(TreeNodeWrapper::new(NodeWrapper::Composite(
-                                control_node,
-                            ))));
+                            return Ok(Some(control_node_wrapper));
                         }
                     } else {
                         tracing::warn!("unexpected end: {element_name}");

@@ -24,6 +24,10 @@
       <PrintBody bb=""/>
       <Fallback>
         <PrintArm arm="arm_in"/>
+        <Sequence>
+          <PrintArm arm="dd"/>
+          <PrintBody body="dd"/>
+        </Sequence>
         <PrintBody body="abcdefg"/>
       </Fallback>
       <SubTree ID="aaa"/>
