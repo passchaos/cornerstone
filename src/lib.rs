@@ -93,7 +93,10 @@ impl TreeNode for TreeNodeWrapper {
         match &mut self.node_wrapper {
             NodeWrapper::Composite(cp) => cp.tick(ctx),
             NodeWrapper::Decorator(dn) => dn.tick(ctx),
-            NodeWrapper::Action(tn) => tn.tick(ctx),
+            NodeWrapper::Action(tn) => {
+                tracing::info!("action tick: uid= {}", self.uid);
+                tn.tick(ctx)
+            }
         }
     }
 }
