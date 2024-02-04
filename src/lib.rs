@@ -21,6 +21,10 @@ pub enum BtError {
     Raw(String),
 }
 
+pub fn is_ref_key(key: &str) -> bool {
+    key.starts_with("{") && key.ends_with("}")
+}
+
 #[derive(Default)]
 pub struct Context {
     storage: HashMap<String, Arc<dyn Any>>,
@@ -31,7 +35,23 @@ impl Context {
         self.storage.insert(key, Arc::new(val));
     }
 
-    fn get<T: 'static>(&self, key: &str) -> Option<&T> {
+    pub fn get<T: 'static>(&self, key: &str) -> Option<&T> {
+        let key = if is_ref_key(key) {
+            let ref_key = key.replace("{", "").replace("}", "");
+
+            let Some(ref_value) = self.storage.get::<String>(&ref_key) else {
+                return None;
+            };
+
+            let Some(ref_value) = ref_value.downcast_ref::<String>() else {
+                return None;
+            };
+
+            ref_value.as_str()
+        } else {
+            key
+        };
+
         self.storage.get(key).and_then(|val| val.downcast_ref())
     }
 }
