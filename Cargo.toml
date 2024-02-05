@@ -12,6 +12,8 @@ documentation = "https://docs.rs/crate/cornerstone/latest"
 
 [dependencies]
 quick-xml = "0.31.0"
+serde = "1.0.196"
+serde_json = "1.0.113"
 thiserror = "1.0.56"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"

@@ -1,6 +1,8 @@
 use std::{any::Any, collections::HashMap, str::FromStr, sync::Arc};
 
 use node::{composite::CompositeWrapper, decorator::DecoratorWrapper};
+use serde::Serialize;
+use serde_json::{json, Value};
 use thiserror::Error;
 
 pub mod factory;
@@ -27,32 +29,32 @@ pub fn is_ref_key(key: &str) -> bool {
 
 #[derive(Default)]
 pub struct Context {
-    storage: HashMap<String, Arc<dyn Any>>,
+    storage: HashMap<String, Value>,
 }
 
 impl Context {
-    pub fn set<T: 'static>(&mut self, key: String, val: T) {
-        self.storage.insert(key, Arc::new(val));
+    pub fn set<T: Serialize>(&mut self, key: String, val: T) {
+        self.storage.insert(key, json!(val));
     }
 
-    pub fn get<T: 'static>(&self, key: &str) -> Option<&T> {
+    pub fn get(&self, key: &str) -> Option<&Value> {
         let key = if is_ref_key(key) {
             let ref_key = key.replace("{", "").replace("}", "");
 
-            let Some(ref_value) = self.storage.get::<String>(&ref_key) else {
+            let Some(ref_value) = self.storage.get(&ref_key) else {
                 return None;
             };
 
-            let Some(ref_value) = ref_value.downcast_ref::<String>() else {
+            let Some(ref_value) = ref_value.as_str() else {
                 return None;
             };
 
-            ref_value.as_str()
+            ref_value
         } else {
             key
         };
 
-        self.storage.get(key).and_then(|val| val.downcast_ref())
+        self.storage.get(key)
     }
 }
 
@@ -129,7 +131,7 @@ pub trait TreeNode: Any {
 }
 
 pub enum ProxyValue {
-    Real(Box<dyn Any>),
+    Real(Value),
     Ref(String),
 }
 
@@ -154,7 +156,7 @@ impl DataProxy {
                 if v.starts_with("{") && v.ends_with("}") {
                     (k, ProxyValue::Ref(v))
                 } else {
-                    (k, ProxyValue::Real(Box::new(v)))
+                    (k, ProxyValue::Real(json!(v)))
                 }
             })
             .collect();
@@ -166,10 +168,10 @@ impl DataProxy {
         self.ports_mapping.insert(key, value);
     }
 
-    pub fn get<'a, T: 'static>(&'a self, ctx: &'a Context, key: &str) -> Option<&T> {
+    pub fn get<'a>(&'a self, ctx: &'a Context, key: &str) -> Option<&Value> {
         match self.ports_mapping.get(key) {
             Some(v) => match v {
-                ProxyValue::Real(v) => v.downcast_ref(),
+                ProxyValue::Real(v) => Some(v),
                 ProxyValue::Ref(r) => ctx.get(r.as_str()),
             },
             None => ctx.get(key),
@@ -177,8 +179,15 @@ impl DataProxy {
     }
 
     pub fn get_string_parsed<'a, T: FromStr>(&'a self, ctx: &'a Context, key: &str) -> Option<T> {
-        let a: Option<&String> = self.get(ctx, key);
+        let Some(a) = self.get(ctx, key) else {
+            return None;
+        };
 
-        a.and_then(|a| a.parse::<T>().ok())
+        let Some(a) = a.as_str() else {
+            tracing::warn!("not a string value");
+            return None;
+        };
+
+        a.parse::<T>().ok()
     }
 }
