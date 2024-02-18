@@ -20,7 +20,8 @@ use crate::{
 pub struct Factory {
     composite_tcs: HashMap<String, Box<dyn Fn(Attrs) -> CompositeWrapper>>,
     decorator_tcs: HashMap<String, Box<dyn Fn(Attrs, TreeNodeWrapper) -> DecoratorWrapper>>,
-    action_node_tcs: HashMap<ActionRegex, Box<dyn Fn(&str, Attrs) -> Result<Box<dyn TreeNode>>>>,
+    action_node_tcs:
+        HashMap<ActionRegex, Box<dyn Fn(&str, Attrs) -> OuterResult<Box<dyn TreeNode>>>>,
 }
 
 type Attrs = HashMap<String, String>;
@@ -92,9 +93,12 @@ impl std::hash::Hash for ActionRegex {
     }
 }
 
-pub fn boxify_action<T, F>(cons: F) -> Box<dyn Fn(&str, Attrs) -> Result<Box<dyn TreeNode>>>
+type OuterError = Box<dyn std::error::Error + Send + Sync>;
+type OuterResult<T> = std::result::Result<T, OuterError>;
+
+pub fn boxify_action<T, F>(cons: F) -> Box<dyn Fn(&str, Attrs) -> OuterResult<Box<dyn TreeNode>>>
 where
-    F: 'static + Fn(&str, Attrs) -> Result<T>,
+    F: 'static + Fn(&str, Attrs) -> OuterResult<T>,
     T: 'static + TreeNode,
 {
     Box::new(move |type_name, attrs| {
@@ -131,7 +135,7 @@ impl Factory {
     pub fn register_action_node_type(
         &mut self,
         type_name_pat: ActionRegex,
-        constructor: Box<dyn Fn(&str, Attrs) -> Result<Box<dyn TreeNode>>>,
+        constructor: Box<dyn Fn(&str, Attrs) -> OuterResult<Box<dyn TreeNode>>>,
     ) {
         self.action_node_tcs.insert(type_name_pat, constructor);
     }
