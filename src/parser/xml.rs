@@ -338,11 +338,11 @@ mod test {
         let mut factory = Factory::default();
         factory.register_action_node_type(
             "PrintBody".try_into().unwrap(),
-            boxify_action(|_, _| PrintBody),
+            boxify_action(|_, _| Ok(PrintBody)),
         );
         factory.register_action_node_type(
             "PrintArm".try_into().unwrap(),
-            boxify_action(|_, _| PrintArm),
+            boxify_action(|_, _| Ok(PrintArm)),
         );
 
         let mut xml_path = assets_dir();

@@ -5,6 +5,7 @@ use std::{
 
 use regex::Regex;
 
+use crate::Result;
 use crate::{
     node::{
         composite::{CompositeNodeImpl, CompositeWrapper, Parallel, Selector, Sequence},
@@ -19,7 +20,7 @@ use crate::{
 pub struct Factory {
     composite_tcs: HashMap<String, Box<dyn Fn(Attrs) -> CompositeWrapper>>,
     decorator_tcs: HashMap<String, Box<dyn Fn(Attrs, TreeNodeWrapper) -> DecoratorWrapper>>,
-    action_node_tcs: HashMap<ActionRegex, Box<dyn Fn(&str, Attrs) -> Box<dyn TreeNode>>>,
+    action_node_tcs: HashMap<ActionRegex, Box<dyn Fn(&str, Attrs) -> Result<Box<dyn TreeNode>>>>,
 }
 
 type Attrs = HashMap<String, String>;
@@ -55,7 +56,7 @@ pub struct ActionRegex {
 impl TryFrom<&str> for ActionRegex {
     type Error = BtError;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
         let regex = Regex::new(value)
             .map_err(|e| BtError::Raw(format!("convert to regex meet failure: err= {e}")))?;
 
@@ -91,12 +92,15 @@ impl std::hash::Hash for ActionRegex {
     }
 }
 
-pub fn boxify_action<T, F>(cons: F) -> Box<dyn Fn(&str, Attrs) -> Box<dyn TreeNode>>
+pub fn boxify_action<T, F>(cons: F) -> Box<dyn Fn(&str, Attrs) -> Result<Box<dyn TreeNode>>>
 where
-    F: 'static + Fn(&str, Attrs) -> T,
+    F: 'static + Fn(&str, Attrs) -> Result<T>,
     T: 'static + TreeNode,
 {
-    Box::new(move |type_name, attrs| Box::new(cons(type_name, attrs)))
+    Box::new(move |type_name, attrs| {
+        let res = cons(type_name, attrs)?;
+        Ok(Box::new(res))
+    })
 }
 
 impl Factory {
@@ -127,7 +131,7 @@ impl Factory {
     pub fn register_action_node_type(
         &mut self,
         type_name_pat: ActionRegex,
-        constructor: Box<dyn Fn(&str, Attrs) -> Box<dyn TreeNode>>,
+        constructor: Box<dyn Fn(&str, Attrs) -> Result<Box<dyn TreeNode>>>,
     ) {
         self.action_node_tcs.insert(type_name_pat, constructor);
     }
@@ -147,9 +151,15 @@ impl Factory {
     pub fn build_action(&self, type_name: &str, attrs: Attrs) -> Option<TreeNodeWrapper> {
         for (type_regex, constructor) in &self.action_node_tcs {
             if type_regex.is_match(type_name) {
-                return Some(TreeNodeWrapper::new(NodeWrapper::Action(constructor(
-                    type_name, attrs,
-                ))));
+                let node = match constructor(type_name, attrs.clone()) {
+                    Ok(n) => n,
+                    Err(e) => {
+                        tracing::error!("run action builder meet failure: err= {e}");
+                        continue;
+                    }
+                };
+
+                return Some(TreeNodeWrapper::new(NodeWrapper::Action(node)));
             } else {
                 continue;
             }
