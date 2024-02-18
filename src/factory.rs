@@ -1,4 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    ops::Deref,
+};
+
+use regex::Regex;
 
 use crate::{
     node::{
@@ -8,13 +13,13 @@ use crate::{
             Retry,
         },
     },
-    NodeWrapper, TreeNode, TreeNodeWrapper,
+    BtError, NodeWrapper, TreeNode, TreeNodeWrapper,
 };
 
 pub struct Factory {
     composite_tcs: HashMap<String, Box<dyn Fn(Attrs) -> CompositeWrapper>>,
     decorator_tcs: HashMap<String, Box<dyn Fn(Attrs, TreeNodeWrapper) -> DecoratorWrapper>>,
-    action_node_tcs: HashMap<String, Box<dyn Fn(Attrs) -> Box<dyn TreeNode>>>,
+    action_node_tcs: HashMap<ActionRegex, Box<dyn Fn(Attrs) -> Box<dyn TreeNode>>>,
 }
 
 type Attrs = HashMap<String, String>;
@@ -42,6 +47,50 @@ where
     })
 }
 
+#[derive(Clone, Debug)]
+pub struct ActionRegex {
+    regex: Regex,
+}
+
+impl TryFrom<&str> for ActionRegex {
+    type Error = BtError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let regex = Regex::new(value)
+            .map_err(|e| BtError::Raw(format!("convert to regex meet failure: err= {e}")))?;
+
+        Ok(Self { regex })
+    }
+}
+
+impl From<Regex> for ActionRegex {
+    fn from(value: Regex) -> Self {
+        Self { regex: value }
+    }
+}
+
+impl Deref for ActionRegex {
+    type Target = Regex;
+
+    fn deref(&self) -> &Self::Target {
+        &self.regex
+    }
+}
+
+impl PartialEq for ActionRegex {
+    fn eq(&self, other: &Self) -> bool {
+        self.regex.as_str() == other.regex.as_str()
+    }
+}
+
+impl Eq for ActionRegex {}
+
+impl std::hash::Hash for ActionRegex {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.regex.as_str().hash(state)
+    }
+}
+
 pub fn boxify_action<T, F>(cons: F) -> Box<dyn Fn(Attrs) -> Box<dyn TreeNode>>
 where
     F: 'static + Fn(Attrs) -> T,
@@ -57,10 +106,6 @@ impl Factory {
 
     pub fn decorator_types(&self) -> HashSet<&str> {
         self.decorator_tcs.keys().map(|a| a.as_str()).collect()
-    }
-
-    pub fn action_node_types(&self) -> HashSet<&str> {
-        self.action_node_tcs.keys().map(|a| a.as_str()).collect()
     }
 
     fn register_composite_type(
@@ -81,10 +126,10 @@ impl Factory {
 
     pub fn register_action_node_type(
         &mut self,
-        type_name: String,
+        type_name_pat: ActionRegex,
         constructor: Box<dyn Fn(Attrs) -> Box<dyn TreeNode>>,
     ) {
-        self.action_node_tcs.insert(type_name, constructor);
+        self.action_node_tcs.insert(type_name_pat, constructor);
     }
     pub fn build_composite(&self, type_name: &str, attrs: Attrs) -> Option<CompositeWrapper> {
         self.composite_tcs.get(type_name).map(|c| c(attrs))
@@ -100,10 +145,21 @@ impl Factory {
     }
 
     pub fn build_action(&self, type_name: &str, attrs: Attrs) -> Option<TreeNodeWrapper> {
-        self.action_node_tcs
-            .get(type_name)
-            .map(|c| c(attrs))
-            .map(|a| TreeNodeWrapper::new(NodeWrapper::Action(a)))
+        for (type_regex, constructor) in &self.action_node_tcs {
+            if type_regex.is_match(type_name) {
+                return Some(TreeNodeWrapper::new(NodeWrapper::Action(constructor(
+                    attrs,
+                ))));
+            } else {
+                continue;
+            }
+        }
+
+        None
+        //    self.action_node_tcs
+        //         .get(type_name)
+        //         .map(|c| c(attrs))
+        //         .map(|a| TreeNodeWrapper::new(NodeWrapper::Action(a)))
     }
 }
 

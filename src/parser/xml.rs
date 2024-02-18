@@ -128,21 +128,6 @@ fn create_tree_node_recursively(
                         }
                         _ => {}
                     }
-                } else if factory.action_node_types().contains(element_name) {
-                    tracing::trace!("leaf node: {element_name}");
-                    let Some(mut node) = factory.build_action(element_name, wrapper.kv()?) else {
-                        tracing::warn!("can't create node: element_name= {element_name}");
-
-                        continue;
-                    };
-
-                    node.uid = uid_generator.fetch_add(1, Ordering::SeqCst);
-
-                    if let Some((control_node, _)) = control_nodes.front_mut() {
-                        control_node.add_child(node);
-                    } else {
-                        return Ok(Some(node));
-                    }
                 } else if element_name == "SubTree" {
                     tracing::trace!("SubTree");
 
@@ -170,7 +155,20 @@ fn create_tree_node_recursively(
                         return Ok(Some(node));
                     }
                 } else {
-                    tracing::warn!("unknown element: {element_name}");
+                    tracing::trace!("leaf node: {element_name}");
+                    let Some(mut node) = factory.build_action(element_name, wrapper.kv()?) else {
+                        tracing::warn!("can't create node: element_name= {element_name}");
+
+                        continue;
+                    };
+
+                    node.uid = uid_generator.fetch_add(1, Ordering::SeqCst);
+
+                    if let Some((control_node, _)) = control_nodes.front_mut() {
+                        control_node.add_child(node);
+                    } else {
+                        return Ok(Some(node));
+                    }
                 }
             }
             Ok(Event::End(e)) => {
@@ -338,8 +336,12 @@ mod test {
     fn test_parse() {
         tracing_subscriber::fmt::init();
         let mut factory = Factory::default();
-        factory.register_action_node_type("PrintBody".to_string(), boxify_action(|_| PrintBody));
-        factory.register_action_node_type("PrintArm".to_string(), boxify_action(|_| PrintArm));
+        factory.register_action_node_type(
+            "PrintBody".try_into().unwrap(),
+            boxify_action(|_| PrintBody),
+        );
+        factory
+            .register_action_node_type("PrintArm".try_into().unwrap(), boxify_action(|_| PrintArm));
 
         let mut xml_path = assets_dir();
         xml_path.push("full.xml");
