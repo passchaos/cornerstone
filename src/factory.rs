@@ -19,7 +19,7 @@ use crate::{
 pub struct Factory {
     composite_tcs: HashMap<String, Box<dyn Fn(Attrs) -> CompositeWrapper>>,
     decorator_tcs: HashMap<String, Box<dyn Fn(Attrs, TreeNodeWrapper) -> DecoratorWrapper>>,
-    action_node_tcs: HashMap<ActionRegex, Box<dyn Fn(Attrs) -> Box<dyn TreeNode>>>,
+    action_node_tcs: HashMap<ActionRegex, Box<dyn Fn(&str, Attrs) -> Box<dyn TreeNode>>>,
 }
 
 type Attrs = HashMap<String, String>;
@@ -91,12 +91,12 @@ impl std::hash::Hash for ActionRegex {
     }
 }
 
-pub fn boxify_action<T, F>(cons: F) -> Box<dyn Fn(Attrs) -> Box<dyn TreeNode>>
+pub fn boxify_action<T, F>(cons: F) -> Box<dyn Fn(&str, Attrs) -> Box<dyn TreeNode>>
 where
-    F: 'static + Fn(Attrs) -> T,
+    F: 'static + Fn(&str, Attrs) -> T,
     T: 'static + TreeNode,
 {
-    Box::new(move |attrs| Box::new(cons(attrs)))
+    Box::new(move |type_name, attrs| Box::new(cons(type_name, attrs)))
 }
 
 impl Factory {
@@ -127,7 +127,7 @@ impl Factory {
     pub fn register_action_node_type(
         &mut self,
         type_name_pat: ActionRegex,
-        constructor: Box<dyn Fn(Attrs) -> Box<dyn TreeNode>>,
+        constructor: Box<dyn Fn(&str, Attrs) -> Box<dyn TreeNode>>,
     ) {
         self.action_node_tcs.insert(type_name_pat, constructor);
     }
@@ -148,7 +148,7 @@ impl Factory {
         for (type_regex, constructor) in &self.action_node_tcs {
             if type_regex.is_match(type_name) {
                 return Some(TreeNodeWrapper::new(NodeWrapper::Action(constructor(
-                    attrs,
+                    type_name, attrs,
                 ))));
             } else {
                 continue;
