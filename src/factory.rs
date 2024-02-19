@@ -29,7 +29,7 @@ type Attrs = HashMap<String, String>;
 fn boxify_composite<T, F>(cons: F) -> Box<dyn Fn(Attrs) -> CompositeWrapper>
 where
     F: 'static + Fn(&Attrs) -> T,
-    T: 'static + CompositeNodeImpl,
+    T: 'static + CompositeNodeImpl + Send,
 {
     Box::new(move |attrs| {
         let node_wrapper = Box::new(cons(&attrs));

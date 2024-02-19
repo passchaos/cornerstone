@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{Context, DataProxy, NodeStatus, TreeNode, TreeNodeWrapper};
 
-pub trait DecoratorNodeImpl {
+pub trait DecoratorNodeImpl: Send {
     fn tick_status(
         &mut self,
         ctx: &mut Context,

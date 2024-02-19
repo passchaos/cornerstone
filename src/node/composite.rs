@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{Context, DataProxy, NodeStatus, TreeNode, TreeNodeWrapper};
 
-pub trait CompositeNodeImpl {
+pub trait CompositeNodeImpl: Send {
     fn tick_status(
         &mut self,
         ctx: &mut Context,

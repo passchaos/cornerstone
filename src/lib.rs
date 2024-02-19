@@ -40,21 +40,12 @@ impl Context {
     pub fn get(&self, key: &str) -> Option<&Value> {
         let key = if is_ref_key(key) {
             let ref_key = key.replace("{", "").replace("}", "");
-
-            let Some(ref_value) = self.storage.get(&ref_key) else {
-                return None;
-            };
-
-            let Some(ref_value) = ref_value.as_str() else {
-                return None;
-            };
-
-            ref_value
+            ref_key
         } else {
-            key
+            key.to_string()
         };
 
-        self.storage.get(key)
+        self.storage.get(&key)
     }
 }
 
@@ -116,14 +107,14 @@ impl TreeNode for TreeNodeWrapper {
             NodeWrapper::Composite(cp) => cp.tick(ctx),
             NodeWrapper::Decorator(dn) => dn.tick(ctx),
             NodeWrapper::Action(tn) => {
-                tracing::info!("action tick: uid= {}", self.uid);
+                tracing::trace!("action tick: uid= {}", self.uid);
                 tn.tick(ctx)
             }
         }
     }
 }
 
-pub trait TreeNode: Any {
+pub trait TreeNode: Any + Send {
     fn tick(&mut self, ctx: &mut Context) -> NodeStatus;
     fn debug_info(&self) -> String {
         format!("Action {}", std::any::type_name::<Self>())
