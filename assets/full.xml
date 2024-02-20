@@ -22,6 +22,8 @@
       <PrintArm arm="left_arm"/>
       <PrintArm arm="right_arm"/>
       <PrintBody bb=""/>
+      <SetBlackboard value="42" output_key="the_answer" />
+      <SetBlackboard value="{the_answer}" output_key="dst_port" /> 
       <Fallback>
         <PrintArm arm="arm_in"/>
         <Sequence>

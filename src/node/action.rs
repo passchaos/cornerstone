@@ -5,7 +5,7 @@ use crate::{NodeStatus, TreeNode, TreeNodeWrapper};
 use super::DataProxy;
 
 pub trait ActionNodeImpl: Send {
-    fn tick_status(&mut self, data_proxy: DataProxy) -> NodeStatus;
+    fn tick_status(&mut self, data_proxy: &mut DataProxy) -> NodeStatus;
 
     fn node_info(&self) -> String {
         format!("{}", std::any::type_name::<Self>())
@@ -14,17 +14,21 @@ pub trait ActionNodeImpl: Send {
 
 pub struct ActionWrapper {
     pub data_proxy: DataProxy,
-    node: Box<dyn TreeNode>,
+    node: Box<dyn ActionNodeImpl>,
 }
 
 impl TreeNode for ActionWrapper {
     fn tick(&mut self) -> NodeStatus {
-        self.node.tick()
+        self.node.tick_status(&mut self.data_proxy)
+    }
+
+    fn debug_info(&self) -> String {
+        format!("Action {}", self.node.node_info())
     }
 }
 
 impl ActionWrapper {
-    pub fn new(data_proxy: DataProxy, node: Box<dyn TreeNode>) -> Self {
+    pub fn new(data_proxy: DataProxy, node: Box<dyn ActionNodeImpl>) -> Self {
         Self { data_proxy, node }
     }
 }
@@ -33,7 +37,7 @@ impl ActionWrapper {
 pub struct SetBlackboard;
 
 impl ActionNodeImpl for SetBlackboard {
-    fn tick_status(&mut self, data_proxy: DataProxy) -> NodeStatus {
+    fn tick_status(&mut self, data_proxy: &mut DataProxy) -> NodeStatus {
         let Some(output_key) = data_proxy.get_input::<String>("output_key") else {
             return NodeStatus::Failure;
         };

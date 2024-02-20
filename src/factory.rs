@@ -5,11 +5,10 @@ use std::{
 };
 
 use regex::Regex;
-use tracing_subscriber::registry::Data;
 
 use crate::{
     node::{
-        action::ActionWrapper,
+        action::{ActionNodeImpl, ActionWrapper, SetBlackboard},
         composite::{CompositeNodeImpl, CompositeWrapper, Parallel, Selector, Sequence},
         decorator::{
             DecoratorNodeImpl, DecoratorWrapper, ForceFailure, ForceSuccess, Inverter, Repeat,
@@ -28,7 +27,7 @@ pub struct Factory {
     decorator_tcs:
         HashMap<String, Box<dyn Fn(DataProxy, Attrs, TreeNodeWrapper) -> DecoratorWrapper>>,
     action_node_tcs:
-        HashMap<ActionRegex, Box<dyn Fn(&str, Attrs) -> OuterResult<Box<dyn TreeNode>>>>,
+        HashMap<ActionRegex, Box<dyn Fn(&str, DataProxy, Attrs) -> OuterResult<ActionWrapper>>>,
 }
 
 type Attrs = HashMap<String, String>;
@@ -36,7 +35,7 @@ type Attrs = HashMap<String, String>;
 fn boxify_composite<T, F>(cons: F) -> Box<dyn Fn(DataProxy, Attrs) -> CompositeWrapper>
 where
     F: 'static + Fn(&Attrs) -> T,
-    T: 'static + CompositeNodeImpl + Send,
+    T: 'static + CompositeNodeImpl,
 {
     Box::new(move |data_proxy, attrs| {
         let node_wrapper = Box::new(cons(&attrs));
@@ -105,14 +104,17 @@ impl std::hash::Hash for ActionRegex {
 type OuterError = Box<dyn std::error::Error + Send + Sync>;
 type OuterResult<T> = std::result::Result<T, OuterError>;
 
-pub fn boxify_action<T, F>(cons: F) -> Box<dyn Fn(&str, Attrs) -> OuterResult<Box<dyn TreeNode>>>
+pub fn boxify_action<T, F>(
+    cons: F,
+) -> Box<dyn Fn(&str, DataProxy, Attrs) -> OuterResult<ActionWrapper>>
 where
     F: 'static + Fn(&str, Attrs) -> OuterResult<T>,
-    T: 'static + TreeNode,
+    T: 'static + ActionNodeImpl,
 {
-    Box::new(move |type_name, attrs| {
+    Box::new(move |type_name, data_proxy, attrs| {
         let res = cons(type_name, attrs)?;
-        Ok(Box::new(res))
+
+        Ok(ActionWrapper::new(data_proxy, Box::new(res)))
     })
 }
 
@@ -144,7 +146,7 @@ impl Factory {
     pub fn register_action_node_type(
         &mut self,
         type_name_pat: ActionRegex,
-        constructor: Box<dyn Fn(&str, Attrs) -> OuterResult<Box<dyn TreeNode>>>,
+        constructor: Box<dyn Fn(&str, DataProxy, Attrs) -> OuterResult<ActionWrapper>>,
     ) {
         self.action_node_tcs.insert(type_name_pat, constructor);
     }
@@ -179,7 +181,8 @@ impl Factory {
     ) -> Option<TreeNodeWrapper> {
         for (type_regex, constructor) in &self.action_node_tcs {
             if type_regex.is_match(type_name) {
-                let node = match constructor(type_name, attrs.clone()) {
+                let action_wrapper = match constructor(type_name, data_proxy.clone(), attrs.clone())
+                {
                     Ok(n) => n,
                     Err(e) => {
                         tracing::error!("run action builder meet failure: err= {e}");
@@ -187,7 +190,6 @@ impl Factory {
                     }
                 };
 
-                let action_wrapper = ActionWrapper::new(data_proxy, node);
                 return Some(TreeNodeWrapper::new(NodeWrapper::Action(action_wrapper)));
             } else {
                 continue;
@@ -242,6 +244,11 @@ impl Default for Factory {
         fac.register_decorator_type(
             "RetryUntilSuccessful".to_string(),
             boxify_decorator(|_| Retry::default()),
+        );
+
+        fac.register_action_node_type(
+            "^SetBlackboard$".try_into().unwrap(),
+            boxify_action(|_, _| Ok(SetBlackboard::default())),
         );
 
         fac

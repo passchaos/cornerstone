@@ -37,6 +37,7 @@ impl Blackboard {
     }
 }
 
+#[derive(Clone)]
 pub struct DataProxy {
     bb: Arc<RwLock<Blackboard>>,
     input_ports: HashMap<String, String>,

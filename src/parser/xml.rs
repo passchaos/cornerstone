@@ -304,7 +304,7 @@ pub fn create_bt_tree_from_xml_str(factory: &Factory, s: &str) -> Result<Option<
 mod test {
     use std::path::PathBuf;
 
-    use crate::{factory::boxify_action, NodeStatus};
+    use crate::{factory::boxify_action, node::action::ActionNodeImpl, NodeStatus};
 
     use super::*;
 
@@ -317,8 +317,8 @@ mod test {
 
     struct PrintBody;
 
-    impl TreeNode for PrintBody {
-        fn tick(&mut self) -> crate::NodeStatus {
+    impl ActionNodeImpl for PrintBody {
+        fn tick_status(&mut self, data_proxy: &mut DataProxy) -> NodeStatus {
             println!("body tick");
             NodeStatus::Success
         }
@@ -326,8 +326,8 @@ mod test {
 
     struct PrintArm;
 
-    impl TreeNode for PrintArm {
-        fn tick(&mut self) -> NodeStatus {
+    impl ActionNodeImpl for PrintArm {
+        fn tick_status(&mut self, data_proxy: &mut DataProxy) -> NodeStatus {
             println!("arm tick");
             NodeStatus::Success
         }
