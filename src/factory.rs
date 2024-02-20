@@ -176,9 +176,13 @@ impl Factory {
     pub fn build_action(
         &self,
         type_name: &str,
-        data_proxy: DataProxy,
+        mut data_proxy: DataProxy,
         attrs: Attrs,
     ) -> Option<TreeNodeWrapper> {
+        for (key, value) in attrs.clone() {
+            data_proxy.add_input(key, value);
+        }
+
         for (type_regex, constructor) in &self.action_node_tcs {
             if type_regex.is_match(type_name) {
                 let action_wrapper = match constructor(type_name, data_proxy.clone(), attrs.clone())

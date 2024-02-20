@@ -69,6 +69,10 @@ impl DataProxy {
         }
     }
 
+    pub fn add_input(&mut self, key: String, value: String) {
+        self.input_ports.insert(key, value);
+    }
+
     pub fn get_input<T: FromStr>(&self, key: &str) -> Option<T>
     where
         for<'de> T: serde::Deserialize<'de>,
