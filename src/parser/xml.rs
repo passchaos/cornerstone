@@ -10,8 +10,9 @@ use std::{
 use crate::{
     factory::Factory,
     node::{Blackboard, DataProxy},
-    BtError, Context, NodeWrapper, Result, TreeNode, TreeNodeWrapper,
+    BtError, NodeWrapper, Result, TreeNode, TreeNodeWrapper,
 };
+use parking_lot::RwLock;
 use quick_xml::{
     events::{attributes::Attributes, Event},
     Reader,
@@ -63,7 +64,7 @@ fn create_tree_node_recursively(
     s: &str,
     check_range: Range<usize>,
     tree_ranges: &HashMap<String, Range<usize>>,
-    bb: Arc<Blackboard>,
+    bb: Arc<RwLock<Blackboard>>,
     uid_generator: &AtomicU16,
 ) -> Result<Option<TreeNodeWrapper>> {
     tracing::trace!("input: root_str= {s} check_range= {check_range:?}");
@@ -86,14 +87,17 @@ fn create_tree_node_recursively(
                     tracing::trace!("composite node");
 
                     let data_proxy = DataProxy::new(bb.clone());
-                    let Some(node) =
+                    let Some(mut node) =
                         factory.build_composite(element_name, data_proxy, wrapper.kv()?)
                     else {
                         tracing::warn!("can't create node: element_name= {element_name}");
                         continue;
                     };
 
-                    control_nodes.push_front((node, uid_generator.fetch_add(1, Ordering::SeqCst)));
+                    let uid = uid_generator.fetch_add(1, Ordering::SeqCst);
+                    node.data_proxy.set_uid(uid);
+
+                    control_nodes.push_front((node, uid));
                 } else if factory.decorator_types().contains(element_name) {
                     tracing::trace!("decorator node");
 
@@ -132,12 +136,13 @@ fn create_tree_node_recursively(
                             };
 
                             let decorator_uid = uid_generator.fetch_add(1, Ordering::SeqCst);
+                            decorator_node.data_proxy.set_uid(decorator_uid);
+
                             let inner_node_uid = uid_generator.fetch_add(1, Ordering::SeqCst);
-                            decorator_node.inner_node.uid = inner_node_uid;
+                            decorator_node.inner_node.set_uid(inner_node_uid);
 
                             let mut node =
                                 TreeNodeWrapper::new(NodeWrapper::Decorator(decorator_node));
-                            node.uid = decorator_uid;
 
                             if let Some((control_node, _)) = control_nodes.front_mut() {
                                 control_node.add_child(node);
@@ -166,7 +171,7 @@ fn create_tree_node_recursively(
                         s,
                         range,
                         tree_ranges,
-                        Arc::new(subtree_bb),
+                        Arc::new(RwLock::new(subtree_bb)),
                         uid_generator,
                     )?
                     .ok_or_else(|| BtError::Raw("no subtree node created".to_string()))?;
@@ -188,7 +193,8 @@ fn create_tree_node_recursively(
                         continue;
                     };
 
-                    node.uid = uid_generator.fetch_add(1, Ordering::SeqCst);
+                    let uid = uid_generator.fetch_add(1, Ordering::SeqCst);
+                    node.set_uid(uid);
 
                     if let Some((control_node, _)) = control_nodes.front_mut() {
                         control_node.add_child(node);
@@ -205,7 +211,6 @@ fn create_tree_node_recursively(
                     if let Some((control_node, uid)) = control_nodes.pop_front() {
                         let mut control_node_wrapper =
                             TreeNodeWrapper::new(NodeWrapper::Composite(control_node));
-                        control_node_wrapper.uid = uid;
 
                         if let Some((parent_control_node, _)) = control_nodes.front_mut() {
                             parent_control_node.add_child(control_node_wrapper);
@@ -288,7 +293,7 @@ pub fn create_bt_tree_from_xml_str(factory: &Factory, s: &str) -> Result<Option<
         s,
         main_tree_range,
         &tree_ranges,
-        Arc::new(bb),
+        Arc::new(RwLock::new(bb)),
         &AtomicU16::new(0),
     )?;
 
@@ -313,7 +318,7 @@ mod test {
     struct PrintBody;
 
     impl TreeNode for PrintBody {
-        fn tick(&mut self, ctx: &mut crate::Context) -> crate::NodeStatus {
+        fn tick(&mut self) -> crate::NodeStatus {
             println!("body tick");
             NodeStatus::Success
         }
@@ -322,7 +327,7 @@ mod test {
     struct PrintArm;
 
     impl TreeNode for PrintArm {
-        fn tick(&mut self, ctx: &mut crate::Context) -> NodeStatus {
+        fn tick(&mut self) -> NodeStatus {
             println!("arm tick");
             NodeStatus::Success
         }
@@ -391,10 +396,8 @@ mod test {
                 // tracing::info!("has control node: name= {}", control_node.debug_info());
             }
 
-            let mut ctx = Context::default();
-
             loop {
-                let res = node.tick(&mut ctx);
+                let res = node.tick();
 
                 if res != NodeStatus::Running {
                     break;

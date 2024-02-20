@@ -1,13 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{Context, NodeStatus, TreeNode, TreeNodeWrapper};
+use crate::{NodeStatus, TreeNode, TreeNodeWrapper};
 
 use super::DataProxy;
 
 pub trait CompositeNodeImpl: Send {
     fn tick_status(
         &mut self,
-        ctx: &mut Context,
         data_proxy: &mut DataProxy,
         child_nodes: &mut Vec<TreeNodeWrapper>,
     ) -> NodeStatus;
@@ -17,7 +16,7 @@ pub trait CompositeNodeImpl: Send {
 }
 
 pub struct CompositeWrapper {
-    data_proxy: DataProxy,
+    pub data_proxy: DataProxy,
     node_wrapper: Box<dyn CompositeNodeImpl>,
     child_nodes: Vec<TreeNodeWrapper>,
 }
@@ -49,9 +48,9 @@ impl CompositeWrapper {
 }
 
 impl TreeNode for CompositeWrapper {
-    fn tick(&mut self, ctx: &mut Context) -> NodeStatus {
+    fn tick(&mut self) -> NodeStatus {
         self.node_wrapper
-            .tick_status(ctx, &mut self.data_proxy, &mut self.child_nodes)
+            .tick_status(&mut self.data_proxy, &mut self.child_nodes)
     }
 }
 
@@ -63,14 +62,13 @@ pub struct Sequence {
 impl CompositeNodeImpl for Sequence {
     fn tick_status(
         &mut self,
-        ctx: &mut Context,
         data_proxy: &mut DataProxy,
         child_nodes: &mut Vec<TreeNodeWrapper>,
     ) -> NodeStatus {
         let from = self.current_child_idx;
 
         for node in child_nodes.iter_mut().skip(from) {
-            match node.tick(ctx) {
+            match node.tick() {
                 NodeStatus::Failure => {
                     return NodeStatus::Failure;
                 }
@@ -106,7 +104,6 @@ pub const PARALLEL_FAILURE_COUNT: &str = "failure_count";
 impl CompositeNodeImpl for Parallel {
     fn tick_status(
         &mut self,
-        ctx: &mut Context,
         data_proxy: &mut DataProxy,
         child_nodes: &mut Vec<TreeNodeWrapper>,
     ) -> NodeStatus {
@@ -131,7 +128,7 @@ impl CompositeNodeImpl for Parallel {
 
             let node = &mut child_nodes[i];
 
-            match node.tick(ctx) {
+            match node.tick() {
                 NodeStatus::Failure => {
                     self.failure_count += 1;
                 }
@@ -162,12 +159,11 @@ pub struct Selector;
 impl CompositeNodeImpl for Selector {
     fn tick_status(
         &mut self,
-        ctx: &mut Context,
         data_proxy: &mut DataProxy,
         child_nodes: &mut Vec<TreeNodeWrapper>,
     ) -> NodeStatus {
         for node in child_nodes.iter_mut() {
-            match node.tick(ctx) {
+            match node.tick() {
                 NodeStatus::Success => return NodeStatus::Success,
                 NodeStatus::Running => return NodeStatus::Running,
                 NodeStatus::Failure => (),

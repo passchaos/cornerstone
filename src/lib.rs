@@ -1,6 +1,8 @@
 use std::{any::Any, collections::HashMap, str::FromStr};
 
-use node::{composite::CompositeWrapper, decorator::DecoratorWrapper, is_ref_key};
+use node::{
+    action::ActionWrapper, composite::CompositeWrapper, decorator::DecoratorWrapper, is_ref_key,
+};
 use parking_lot::RwLock;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -24,29 +26,6 @@ pub enum BtError {
     Raw(String),
 }
 
-#[derive(Default)]
-pub struct Context {
-    storage: RwLock<HashMap<String, Value>>,
-}
-
-impl Context {
-    pub fn set<T: Serialize>(&mut self, key: String, val: T) {
-        self.storage.write().insert(key, json!(val));
-    }
-
-    pub fn get(&self, key: &str) -> Option<Value> {
-        let key = if is_ref_key(key) {
-            let ref_key = key.replace("{", "").replace("}", "");
-            ref_key
-        } else {
-            key.to_string()
-        };
-
-        let guard = self.storage.read();
-        guard.get(&key).cloned()
-    }
-}
-
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum NodeStatus {
     Success,
@@ -64,20 +43,16 @@ pub enum NodeType {
 pub enum NodeWrapper {
     Composite(CompositeWrapper),
     Decorator(DecoratorWrapper),
-    Action(Box<dyn TreeNode>),
+    Action(ActionWrapper),
 }
 
 pub struct TreeNodeWrapper {
-    pub uid: u16,
     pub node_wrapper: NodeWrapper,
 }
 
 impl TreeNodeWrapper {
     pub fn new(node_wrapper: NodeWrapper) -> Self {
-        Self {
-            uid: 0,
-            node_wrapper,
-        }
+        Self { node_wrapper }
     }
 
     pub fn node_type(&self) -> NodeType {
@@ -88,6 +63,28 @@ impl TreeNodeWrapper {
         }
     }
 
+    pub fn uid(&self) -> u16 {
+        match &self.node_wrapper {
+            NodeWrapper::Composite(cp) => cp.data_proxy.uid(),
+            NodeWrapper::Decorator(dr) => dr.data_proxy.uid(),
+            NodeWrapper::Action(at) => at.data_proxy.uid(),
+        }
+    }
+
+    pub fn set_uid(&mut self, uid: u16) {
+        match &mut self.node_wrapper {
+            NodeWrapper::Composite(cp) => {
+                cp.data_proxy.set_uid(uid);
+            }
+            NodeWrapper::Decorator(dr) => {
+                dr.data_proxy.set_uid(uid);
+            }
+            NodeWrapper::Action(at) => {
+                at.data_proxy.set_uid(uid);
+            }
+        }
+    }
+
     pub fn node_info(&self) -> String {
         let a = match &self.node_wrapper {
             NodeWrapper::Composite(cp) => cp.node_info(),
@@ -95,25 +92,27 @@ impl TreeNodeWrapper {
             NodeWrapper::Action(tn) => tn.debug_info(),
         };
 
-        format!("uid= {} {a}", self.uid)
+        format!("uid= {} {a}", self.uid())
     }
 }
 
 impl TreeNode for TreeNodeWrapper {
-    fn tick(&mut self, ctx: &mut Context) -> NodeStatus {
+    fn tick(&mut self) -> NodeStatus {
+        let uid = self.uid();
+
         match &mut self.node_wrapper {
-            NodeWrapper::Composite(cp) => cp.tick(ctx),
-            NodeWrapper::Decorator(dn) => dn.tick(ctx),
+            NodeWrapper::Composite(cp) => cp.tick(),
+            NodeWrapper::Decorator(dn) => dn.tick(),
             NodeWrapper::Action(tn) => {
-                tracing::trace!("action tick: uid= {}", self.uid);
-                tn.tick(ctx)
+                tracing::trace!("action tick: uid= {uid}");
+                tn.tick()
             }
         }
     }
 }
 
 pub trait TreeNode: Any + Send {
-    fn tick(&mut self, ctx: &mut Context) -> NodeStatus;
+    fn tick(&mut self) -> NodeStatus;
     fn debug_info(&self) -> String {
         format!("Action {}", std::any::type_name::<Self>())
     }

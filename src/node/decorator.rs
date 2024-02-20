@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 
-use crate::{Context, NodeStatus, TreeNode, TreeNodeWrapper};
+use crate::{NodeStatus, TreeNode, TreeNodeWrapper};
 
 use super::DataProxy;
 
 pub trait DecoratorNodeImpl: Send {
     fn tick_status(
         &mut self,
-        ctx: &mut Context,
         data_proxy: &mut DataProxy,
         inner_node: &mut TreeNodeWrapper,
     ) -> NodeStatus;
@@ -17,15 +16,15 @@ pub trait DecoratorNodeImpl: Send {
 }
 
 pub struct DecoratorWrapper {
-    data_proxy: DataProxy,
+    pub data_proxy: DataProxy,
     node_wrapper: Box<dyn DecoratorNodeImpl>,
     pub inner_node: Box<TreeNodeWrapper>,
 }
 
 impl TreeNode for DecoratorWrapper {
-    fn tick(&mut self, ctx: &mut Context) -> NodeStatus {
+    fn tick(&mut self) -> NodeStatus {
         self.node_wrapper
-            .tick_status(ctx, &mut self.data_proxy, &mut self.inner_node)
+            .tick_status(&mut self.data_proxy, &mut self.inner_node)
     }
 }
 
@@ -57,11 +56,10 @@ pub struct ForceSuccess;
 impl DecoratorNodeImpl for ForceSuccess {
     fn tick_status(
         &mut self,
-        ctx: &mut Context,
         data_proxy: &mut DataProxy,
         inner_node: &mut TreeNodeWrapper,
     ) -> NodeStatus {
-        match inner_node.tick(ctx) {
+        match inner_node.tick() {
             NodeStatus::Running => NodeStatus::Running,
             _ => NodeStatus::Success,
         }
@@ -74,11 +72,10 @@ pub struct ForceFailure;
 impl DecoratorNodeImpl for ForceFailure {
     fn tick_status(
         &mut self,
-        ctx: &mut Context,
         data_proxy: &mut DataProxy,
         inner_node: &mut TreeNodeWrapper,
     ) -> NodeStatus {
-        match inner_node.tick(ctx) {
+        match inner_node.tick() {
             NodeStatus::Running => NodeStatus::Running,
             _ => NodeStatus::Failure,
         }
@@ -91,11 +88,10 @@ pub struct Inverter;
 impl DecoratorNodeImpl for Inverter {
     fn tick_status(
         &mut self,
-        ctx: &mut Context,
         data_proxy: &mut DataProxy,
         inner_node: &mut TreeNodeWrapper,
     ) -> NodeStatus {
-        match inner_node.tick(ctx) {
+        match inner_node.tick() {
             NodeStatus::Running => NodeStatus::Running,
             NodeStatus::Failure => NodeStatus::Success,
             NodeStatus::Success => NodeStatus::Failure,
@@ -113,7 +109,6 @@ pub const NUM_CYCLES: &str = "num_cycles";
 impl DecoratorNodeImpl for Repeat {
     fn tick_status(
         &mut self,
-        ctx: &mut Context,
         data_proxy: &mut DataProxy,
         inner_node: &mut TreeNodeWrapper,
     ) -> NodeStatus {
@@ -125,7 +120,7 @@ impl DecoratorNodeImpl for Repeat {
             return NodeStatus::Success;
         }
 
-        match inner_node.tick(ctx) {
+        match inner_node.tick() {
             a @ NodeStatus::Success | a @ NodeStatus::Failure => {
                 self.repeat_count += 1;
 
@@ -148,14 +143,13 @@ pub struct Retry {
 impl DecoratorNodeImpl for Retry {
     fn tick_status(
         &mut self,
-        ctx: &mut Context,
         data_proxy: &mut DataProxy,
         inner_node: &mut TreeNodeWrapper,
     ) -> NodeStatus {
         let num_attempts = data_proxy.get_input(NUM_ATTEMPTS).unwrap_or(1);
 
         while self.try_count <= num_attempts {
-            match inner_node.tick(ctx) {
+            match inner_node.tick() {
                 NodeStatus::Failure => {
                     self.try_count += 1;
                     continue;

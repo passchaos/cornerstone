@@ -9,6 +9,7 @@ use tracing_subscriber::registry::Data;
 
 use crate::{
     node::{
+        action::ActionWrapper,
         composite::{CompositeNodeImpl, CompositeWrapper, Parallel, Selector, Sequence},
         decorator::{
             DecoratorNodeImpl, DecoratorWrapper, ForceFailure, ForceSuccess, Inverter, Repeat,
@@ -186,7 +187,8 @@ impl Factory {
                     }
                 };
 
-                return Some(TreeNodeWrapper::new(NodeWrapper::Action(node)));
+                let action_wrapper = ActionWrapper::new(data_proxy, node);
+                return Some(TreeNodeWrapper::new(NodeWrapper::Action(action_wrapper)));
             } else {
                 continue;
             }
