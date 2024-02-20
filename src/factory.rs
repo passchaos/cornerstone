@@ -1,11 +1,12 @@
 use std::{
     collections::{HashMap, HashSet},
     ops::Deref,
+    sync::Arc,
 };
 
 use regex::Regex;
+use tracing_subscriber::registry::Data;
 
-use crate::Result;
 use crate::{
     node::{
         composite::{CompositeNodeImpl, CompositeWrapper, Parallel, Selector, Sequence},
@@ -16,36 +17,43 @@ use crate::{
     },
     BtError, NodeWrapper, TreeNode, TreeNodeWrapper,
 };
+use crate::{
+    node::{Blackboard, DataProxy},
+    Result,
+};
 
 pub struct Factory {
-    composite_tcs: HashMap<String, Box<dyn Fn(Attrs) -> CompositeWrapper>>,
-    decorator_tcs: HashMap<String, Box<dyn Fn(Attrs, TreeNodeWrapper) -> DecoratorWrapper>>,
+    composite_tcs: HashMap<String, Box<dyn Fn(DataProxy, Attrs) -> CompositeWrapper>>,
+    decorator_tcs:
+        HashMap<String, Box<dyn Fn(DataProxy, Attrs, TreeNodeWrapper) -> DecoratorWrapper>>,
     action_node_tcs:
         HashMap<ActionRegex, Box<dyn Fn(&str, Attrs) -> OuterResult<Box<dyn TreeNode>>>>,
 }
 
 type Attrs = HashMap<String, String>;
 
-fn boxify_composite<T, F>(cons: F) -> Box<dyn Fn(Attrs) -> CompositeWrapper>
+fn boxify_composite<T, F>(cons: F) -> Box<dyn Fn(DataProxy, Attrs) -> CompositeWrapper>
 where
     F: 'static + Fn(&Attrs) -> T,
     T: 'static + CompositeNodeImpl + Send,
 {
-    Box::new(move |attrs| {
+    Box::new(move |data_proxy, attrs| {
         let node_wrapper = Box::new(cons(&attrs));
 
-        CompositeWrapper::new(attrs, node_wrapper)
+        CompositeWrapper::new(data_proxy, node_wrapper)
     })
 }
 
-fn boxify_decorator<T, F>(cons: F) -> Box<dyn Fn(Attrs, TreeNodeWrapper) -> DecoratorWrapper>
+fn boxify_decorator<T, F>(
+    cons: F,
+) -> Box<dyn Fn(DataProxy, Attrs, TreeNodeWrapper) -> DecoratorWrapper>
 where
     F: 'static + Fn(&Attrs) -> T,
     T: 'static + DecoratorNodeImpl,
 {
-    Box::new(move |attrs, inner_node| {
+    Box::new(move |data_proxy, attrs, inner_node| {
         let node_wrapper = Box::new(cons(&attrs));
-        DecoratorWrapper::new(attrs, node_wrapper, inner_node)
+        DecoratorWrapper::new(data_proxy, node_wrapper, inner_node)
     })
 }
 
@@ -119,7 +127,7 @@ impl Factory {
     fn register_composite_type(
         &mut self,
         type_name: String,
-        constructor: Box<dyn Fn(Attrs) -> CompositeWrapper>,
+        constructor: Box<dyn Fn(DataProxy, Attrs) -> CompositeWrapper>,
     ) {
         self.composite_tcs.insert(type_name, constructor);
     }
@@ -127,7 +135,7 @@ impl Factory {
     fn register_decorator_type(
         &mut self,
         type_name: String,
-        constructor: Box<dyn Fn(Attrs, TreeNodeWrapper) -> DecoratorWrapper>,
+        constructor: Box<dyn Fn(DataProxy, Attrs, TreeNodeWrapper) -> DecoratorWrapper>,
     ) {
         self.decorator_tcs.insert(type_name, constructor);
     }
@@ -139,20 +147,35 @@ impl Factory {
     ) {
         self.action_node_tcs.insert(type_name_pat, constructor);
     }
-    pub fn build_composite(&self, type_name: &str, attrs: Attrs) -> Option<CompositeWrapper> {
-        self.composite_tcs.get(type_name).map(|c| c(attrs))
+    pub fn build_composite(
+        &self,
+        type_name: &str,
+        data_proxy: DataProxy,
+        attrs: Attrs,
+    ) -> Option<CompositeWrapper> {
+        self.composite_tcs
+            .get(type_name)
+            .map(|c| c(data_proxy, attrs))
     }
 
     pub fn build_decorator(
         &self,
         type_name: &str,
+        data_proxy: DataProxy,
         attrs: Attrs,
         node: TreeNodeWrapper,
     ) -> Option<DecoratorWrapper> {
-        self.decorator_tcs.get(type_name).map(|c| c(attrs, node))
+        self.decorator_tcs
+            .get(type_name)
+            .map(|c| c(data_proxy, attrs, node))
     }
 
-    pub fn build_action(&self, type_name: &str, attrs: Attrs) -> Option<TreeNodeWrapper> {
+    pub fn build_action(
+        &self,
+        type_name: &str,
+        data_proxy: DataProxy,
+        attrs: Attrs,
+    ) -> Option<TreeNodeWrapper> {
         for (type_regex, constructor) in &self.action_node_tcs {
             if type_regex.is_match(type_name) {
                 let node = match constructor(type_name, attrs.clone()) {

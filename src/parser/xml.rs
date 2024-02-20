@@ -1,10 +1,17 @@
 use std::{
     collections::{HashMap, VecDeque},
     ops::Range,
-    sync::atomic::{AtomicU16, Ordering},
+    sync::{
+        atomic::{AtomicU16, Ordering},
+        Arc,
+    },
 };
 
-use crate::{factory::Factory, BtError, Context, NodeWrapper, Result, TreeNode, TreeNodeWrapper};
+use crate::{
+    factory::Factory,
+    node::{Blackboard, DataProxy},
+    BtError, Context, NodeWrapper, Result, TreeNode, TreeNodeWrapper,
+};
 use quick_xml::{
     events::{attributes::Attributes, Event},
     Reader,
@@ -56,6 +63,7 @@ fn create_tree_node_recursively(
     s: &str,
     check_range: Range<usize>,
     tree_ranges: &HashMap<String, Range<usize>>,
+    bb: Arc<Blackboard>,
     uid_generator: &AtomicU16,
 ) -> Result<Option<TreeNodeWrapper>> {
     tracing::trace!("input: root_str= {s} check_range= {check_range:?}");
@@ -76,7 +84,11 @@ fn create_tree_node_recursively(
 
                 if factory.composite_types().contains(element_name) {
                     tracing::trace!("composite node");
-                    let Some(node) = factory.build_composite(element_name, wrapper.kv()?) else {
+
+                    let data_proxy = DataProxy::new(bb.clone());
+                    let Some(node) =
+                        factory.build_composite(element_name, data_proxy, wrapper.kv()?)
+                    else {
                         tracing::warn!("can't create node: element_name= {element_name}");
                         continue;
                     };
@@ -94,9 +106,12 @@ fn create_tree_node_recursively(
                             let node_element_name = std::str::from_utf8(node_name.as_ref())?;
                             let node_wrapper = AttributesWrapper::new(e.attributes());
 
-                            let Some(node) =
-                                factory.build_action(node_element_name, node_wrapper.kv()?)
-                            else {
+                            let data_proxy = DataProxy::new(bb.clone());
+                            let Some(node) = factory.build_action(
+                                node_element_name,
+                                data_proxy,
+                                node_wrapper.kv()?,
+                            ) else {
                                 tracing::warn!("can't create node: element_name= {element_name}");
 
                                 continue;
@@ -104,9 +119,13 @@ fn create_tree_node_recursively(
 
                             tracing::trace!("has node: {node_element_name}");
 
-                            let Some(mut decorator_node) =
-                                factory.build_decorator(element_name, wrapper.kv()?, node)
-                            else {
+                            let data_proxy = DataProxy::new(bb.clone());
+                            let Some(mut decorator_node) = factory.build_decorator(
+                                element_name,
+                                data_proxy,
+                                wrapper.kv()?,
+                                node,
+                            ) else {
                                 tracing::warn!("can't create node: element_name= {element_name}");
 
                                 continue;
@@ -140,11 +159,14 @@ fn create_tree_node_recursively(
 
                     let range = tree_ranges[&ref_tree_id].clone();
 
+                    let mut subtree_bb = Blackboard::new_with_parent(&bb);
+
                     let node = create_tree_node_recursively(
                         factory,
                         s,
                         range,
                         tree_ranges,
+                        Arc::new(subtree_bb),
                         uid_generator,
                     )?
                     .ok_or_else(|| BtError::Raw("no subtree node created".to_string()))?;
@@ -156,7 +178,11 @@ fn create_tree_node_recursively(
                     }
                 } else {
                     tracing::trace!("leaf node: {element_name}");
-                    let Some(mut node) = factory.build_action(element_name, wrapper.kv()?) else {
+
+                    let data_proxy = DataProxy::new(bb.clone());
+                    let Some(mut node) =
+                        factory.build_action(element_name, data_proxy, wrapper.kv()?)
+                    else {
                         tracing::warn!("can't create node: element_name= {element_name}");
 
                         continue;
@@ -255,11 +281,14 @@ pub fn create_bt_tree_from_xml_str(factory: &Factory, s: &str) -> Result<Option<
         return Err(BtError::Raw("no main bt tree found".to_string()));
     };
 
+    let bb = Blackboard::default();
+
     let node = create_tree_node_recursively(
         factory,
         s,
         main_tree_range,
         &tree_ranges,
+        Arc::new(bb),
         &AtomicU16::new(0),
     )?;
 

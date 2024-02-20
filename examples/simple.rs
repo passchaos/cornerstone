@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 
 use cornerstone::{
-    node::{
-        composite::{Composite, Sequence},
-        decorator::Repeat,
-    },
+    node::{composite::Sequence, decorator::Repeat},
     Context, DataProxy, NodeStatus, ProxyValue, TreeNode,
 };
 
@@ -20,7 +17,7 @@ struct PrintArmNode {
 
 impl TreeNode for PrintArmNode {
     fn tick(&mut self, ctx: &mut Context) -> NodeStatus {
-        if let Some(arm) = self.data_proxy.get::<Arm>(ctx, "arm") {
+        if let Some(arm) = self.data_proxy.get(ctx, "arm") {
             println!("get arm: {arm:?}");
         };
 

@@ -1,6 +1,7 @@
-use std::{any::Any, collections::HashMap, str::FromStr, sync::Arc};
+use std::{any::Any, collections::HashMap, str::FromStr};
 
-use node::{composite::CompositeWrapper, decorator::DecoratorWrapper};
+use node::{composite::CompositeWrapper, decorator::DecoratorWrapper, is_ref_key};
+use parking_lot::RwLock;
 use serde::Serialize;
 use serde_json::{json, Value};
 use thiserror::Error;
@@ -23,21 +24,17 @@ pub enum BtError {
     Raw(String),
 }
 
-pub fn is_ref_key(key: &str) -> bool {
-    key.starts_with("{") && key.ends_with("}")
-}
-
 #[derive(Default)]
 pub struct Context {
-    storage: HashMap<String, Value>,
+    storage: RwLock<HashMap<String, Value>>,
 }
 
 impl Context {
     pub fn set<T: Serialize>(&mut self, key: String, val: T) {
-        self.storage.insert(key, json!(val));
+        self.storage.write().insert(key, json!(val));
     }
 
-    pub fn get(&self, key: &str) -> Option<&Value> {
+    pub fn get(&self, key: &str) -> Option<Value> {
         let key = if is_ref_key(key) {
             let ref_key = key.replace("{", "").replace("}", "");
             ref_key
@@ -45,7 +42,8 @@ impl Context {
             key.to_string()
         };
 
-        self.storage.get(&key)
+        let guard = self.storage.read();
+        guard.get(&key).cloned()
     }
 }
 
@@ -118,67 +116,5 @@ pub trait TreeNode: Any + Send {
     fn tick(&mut self, ctx: &mut Context) -> NodeStatus;
     fn debug_info(&self) -> String {
         format!("Action {}", std::any::type_name::<Self>())
-    }
-}
-
-pub enum ProxyValue {
-    Real(Value),
-    Ref(String),
-}
-
-#[derive(Default)]
-pub struct DataProxy {
-    ports_mapping: HashMap<String, ProxyValue>,
-}
-
-impl std::fmt::Debug for DataProxy {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DataProxy")
-            .field("keys", &self.ports_mapping.keys())
-            .finish()
-    }
-}
-
-impl DataProxy {
-    pub fn new(map: HashMap<String, String>) -> Self {
-        let map = map
-            .into_iter()
-            .map(|(k, v)| {
-                if v.starts_with("{") && v.ends_with("}") {
-                    (k, ProxyValue::Ref(v))
-                } else {
-                    (k, ProxyValue::Real(json!(v)))
-                }
-            })
-            .collect();
-
-        Self { ports_mapping: map }
-    }
-
-    pub fn insert(&mut self, key: String, value: ProxyValue) {
-        self.ports_mapping.insert(key, value);
-    }
-
-    pub fn get<'a>(&'a self, ctx: &'a Context, key: &str) -> Option<&Value> {
-        match self.ports_mapping.get(key) {
-            Some(v) => match v {
-                ProxyValue::Real(v) => Some(v),
-                ProxyValue::Ref(r) => ctx.get(r.as_str()),
-            },
-            None => ctx.get(key),
-        }
-    }
-
-    pub fn get_string_parsed<'a, T: FromStr>(&'a self, ctx: &'a Context, key: &str) -> Option<T> {
-        let Some(a) = self.get(ctx, key) else {
-            return None;
-        };
-
-        let Some(a) = a.as_str() else {
-            tracing::warn!("not a string value");
-            return None;
-        };
-
-        a.parse::<T>().ok()
     }
 }

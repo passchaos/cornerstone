@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{Context, DataProxy, NodeStatus, TreeNode, TreeNodeWrapper};
+use crate::{Context, NodeStatus, TreeNode, TreeNodeWrapper};
+
+use super::DataProxy;
 
 pub trait CompositeNodeImpl: Send {
     fn tick_status(
@@ -21,12 +23,7 @@ pub struct CompositeWrapper {
 }
 
 impl CompositeWrapper {
-    pub fn new(
-        ports_mapping: HashMap<String, String>,
-        node_wrapper: Box<dyn CompositeNodeImpl>,
-    ) -> Self {
-        let data_proxy = DataProxy::new(ports_mapping);
-
+    pub fn new(data_proxy: DataProxy, node_wrapper: Box<dyn CompositeNodeImpl>) -> Self {
         Self {
             data_proxy,
             node_wrapper,
@@ -116,11 +113,11 @@ impl CompositeNodeImpl for Parallel {
         let children_count = child_nodes.len();
 
         let success_threshold = data_proxy
-            .get_string_parsed::<usize>(ctx, PARALLEL_SUCCESS_COUNT)
+            .get_input(PARALLEL_SUCCESS_COUNT)
             .unwrap_or(self.success_threshold.unwrap_or(children_count));
 
         let failure_threshold = data_proxy
-            .get_string_parsed::<usize>(ctx, PARALLEL_FAILURE_COUNT)
+            .get_input(PARALLEL_FAILURE_COUNT)
             .unwrap_or(self.failure_threshold.unwrap_or(children_count));
 
         if children_count == 0 {

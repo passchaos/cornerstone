@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use crate::{Context, DataProxy, NodeStatus, TreeNode, TreeNodeWrapper};
+use crate::{Context, NodeStatus, TreeNode, TreeNodeWrapper};
+
+use super::DataProxy;
 
 pub trait DecoratorNodeImpl: Send {
     fn tick_status(
@@ -29,12 +31,10 @@ impl TreeNode for DecoratorWrapper {
 
 impl DecoratorWrapper {
     pub fn new(
-        ports_mapping: HashMap<String, String>,
+        data_proxy: DataProxy,
         node_wrapper: Box<dyn DecoratorNodeImpl>,
         inner_node: TreeNodeWrapper,
     ) -> Self {
-        let data_proxy = DataProxy::new(ports_mapping);
-
         Self {
             data_proxy,
             node_wrapper,
@@ -117,9 +117,7 @@ impl DecoratorNodeImpl for Repeat {
         data_proxy: &mut DataProxy,
         inner_node: &mut TreeNodeWrapper,
     ) -> NodeStatus {
-        let num_cycles = data_proxy
-            .get_string_parsed::<usize>(ctx, NUM_CYCLES)
-            .unwrap_or(1);
+        let num_cycles = data_proxy.get_input(NUM_CYCLES).unwrap_or(1);
 
         tracing::trace!("bb num cycles: {num_cycles}");
 
@@ -154,9 +152,7 @@ impl DecoratorNodeImpl for Retry {
         data_proxy: &mut DataProxy,
         inner_node: &mut TreeNodeWrapper,
     ) -> NodeStatus {
-        let num_attempts = data_proxy
-            .get_string_parsed::<usize>(ctx, NUM_ATTEMPTS)
-            .unwrap_or(1);
+        let num_attempts = data_proxy.get_input(NUM_ATTEMPTS).unwrap_or(1);
 
         while self.try_count <= num_attempts {
             match inner_node.tick(ctx) {
