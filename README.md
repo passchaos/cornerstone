@@ -20,7 +20,8 @@ Cornerstone is inspired by many other crates out there, here's a few worth menti
   - [x] Retry
 - Action Node
   - [x] SetBlackboard
-- [x] Xml Parsing 
+- Xml Parsing 
+  - [x] Subtree
 - Observe
   - [ ] record/replay
   - [ ] visualize
