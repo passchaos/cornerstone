@@ -160,7 +160,7 @@ fn create_tree_node_recursively(
                         .get_key("ID")?
                         .ok_or_else(|| BtError::Raw("no ID found for SubTree".to_string()))?;
 
-                    tracing::trace!("SubTree ID: {}", ref_tree_id);
+                    tracing::trace!("SubTree ID: {} tree_ranges= {tree_ranges:?}", ref_tree_id);
 
                     let range = tree_ranges[&ref_tree_id].clone();
 
