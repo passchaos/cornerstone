@@ -18,6 +18,8 @@ Cornerstone is inspired by many other crates out there, here's a few worth menti
   - [x] Subtree
   - [ ] Timeout
   - [x] Retry
+- Action Node
+  - [x] SetBlackboard
 - [x] Xml Parsing 
 - Observe
   - [ ] record/replay
