@@ -156,9 +156,13 @@ impl Factory {
     pub fn build_composite(
         &self,
         type_name: &str,
-        data_proxy: DataProxy,
+        mut data_proxy: DataProxy,
         attrs: Attrs,
     ) -> Option<CompositeWrapper> {
+        for (key, value) in attrs.clone() {
+            data_proxy.add_input(key, value);
+        }
+
         self.composite_tcs
             .get(type_name)
             .map(|c| c(data_proxy, attrs))
@@ -167,10 +171,14 @@ impl Factory {
     pub fn build_decorator(
         &self,
         type_name: &str,
-        data_proxy: DataProxy,
+        mut data_proxy: DataProxy,
         attrs: Attrs,
         node: TreeNodeWrapper,
     ) -> Option<DecoratorWrapper> {
+        for (key, value) in attrs.clone() {
+            data_proxy.add_input(key, value);
+        }
+
         self.decorator_tcs
             .get(type_name)
             .and_then(|c| match c(data_proxy, attrs, node) {

@@ -86,10 +86,18 @@ pub fn strip_ref_tag(key: &str) -> String {
 
 impl DataProxy {
     pub fn new(bb: Arc<RwLock<Blackboard>>) -> Self {
+        Self::new_with_uid(0, bb, HashMap::new())
+    }
+
+    pub fn new_with_uid(
+        uid: u16,
+        bb: Arc<RwLock<Blackboard>>,
+        input_ports: HashMap<String, String>,
+    ) -> Self {
         Self {
             bb,
-            input_ports: HashMap::new(),
-            uid: 0,
+            input_ports,
+            uid,
         }
     }
 
