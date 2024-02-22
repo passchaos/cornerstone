@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     factory::Factory,
-    node::{Blackboard, DataProxy},
+    node::{strip_ref_tag, Blackboard, DataProxy},
     BtError, NodeWrapper, Result, TreeNode, TreeNodeWrapper,
 };
 use parking_lot::RwLock;
@@ -156,15 +156,22 @@ fn create_tree_node_recursively(
                     tracing::trace!("SubTree");
 
                     let wrapper = AttributesWrapper::new(e.attributes());
-                    let ref_tree_id = wrapper
-                        .get_key("ID")?
+                    let mut kv = wrapper.kv()?;
+                    let ref_tree_id = kv
+                        .remove("ID")
                         .ok_or_else(|| BtError::Raw("no ID found for SubTree".to_string()))?;
 
-                    tracing::trace!("SubTree ID: {} tree_ranges= {tree_ranges:?}", ref_tree_id);
+                    let remappings = kv
+                        .into_iter()
+                        .map(|(k, v)| (k, strip_ref_tag(&v)))
+                        .collect();
+
+                    tracing::trace!("SubTree ID: {ref_tree_id} remappings= {remappings:?} tree_ranges= {tree_ranges:?}");
 
                     let range = tree_ranges[&ref_tree_id].clone();
 
                     let mut subtree_bb = Blackboard::new_with_parent(&bb);
+                    subtree_bb.extend_parent_remappings(remappings);
 
                     let node = create_tree_node_recursively(
                         factory,

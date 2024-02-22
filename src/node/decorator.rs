@@ -164,3 +164,23 @@ impl DecoratorNodeImpl for Retry {
 }
 
 pub const NUM_ATTEMPTS: &str = "num_attempts";
+
+pub struct SubTree {
+    id: String,
+}
+
+impl SubTree {
+    pub fn new(id: String) -> Self {
+        Self { id }
+    }
+}
+
+impl DecoratorNodeImpl for SubTree {
+    fn tick_status(
+        &mut self,
+        data_proxy: &mut DataProxy,
+        inner_node: &mut TreeNodeWrapper,
+    ) -> NodeStatus {
+        inner_node.tick()
+    }
+}

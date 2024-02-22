@@ -1,59 +1,66 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root BTCPP_format="4"
-      main_tree_to_execute="main">
+  main_tree_to_execute="main">
   <BehaviorTree ID="aaa">
     <Parallel failure_count="1"
-              success_count="-1">
-      <SubTree ID="bbb"/>
+      success_count="-1">
+      <SubTree ID="bbb" />
       <ForceSuccess>
-        <PrintBody body="abcdefg"/>
+        <PrintBody body="abcdefg" />
       </ForceSuccess>
-      <SubTree ID="bbb"/>
+      <SubTree ID="bbb" />
     </Parallel>
   </BehaviorTree>
 
   <BehaviorTree ID="bbb">
-    <PrintArm arm="arm"/>
+    <PrintArm arm="arm" />
   </BehaviorTree>
 
   <BehaviorTree ID="main">
     <Sequence>
-      <PrintBody body="abcdefg"/>
-      <PrintArm arm="left_arm"/>
-      <PrintArm arm="right_arm"/>
-      <PrintBody bb=""/>
+      <PrintBody body="abcdefg" />
+      <PrintArm arm="left_arm" />
+      <PrintArm arm="right_arm" />
+      <PrintBody bb="" />
       <SetBlackboard value="42" output_key="the_answer" />
-      <SetBlackboard value="{the_answer}" output_key="dst_port" /> 
+      <SetBlackboard value="{the_answer}" output_key="dst_port" />
       <Fallback>
-        <PrintArm arm="arm_in"/>
+        <PrintArm arm="arm_in" />
         <Sequence>
-          <PrintArm arm="dd"/>
-          <PrintBody body="dd"/>
+          <PrintArm arm="dd" />
+          <PrintBody body="dd" />
         </Sequence>
-        <PrintBody body="abcdefg"/>
+        <PrintBody body="abcdefg" />
       </Fallback>
-      <SubTree ID="aaa"/>
+      <SubTree ID="aaa" />
       <Repeat num_cycles="10">
-        <PrintBody body="aaa"/>
+        <PrintBody body="aaa" />
       </Repeat>
+      <ForceFailure>
+        <Sequence>
+          <PrintArm arm="left_arm" />
+          <PrintArm arm="right_arm" />
+          <PrintBody bb="" />
+        </Sequence>
+      </ForceFailure>
     </Sequence>
   </BehaviorTree>
 
   <!-- Description of Node Models (used by Groot) -->
   <TreeNodesModel>
     <Action ID="PrintArm"
-            editable="true">
+      editable="true">
       <input_port name="arm"
-                  default="arm_in">arm info</input_port>
+        default="arm_in">arm info</input_port>
     </Action>
     <Action ID="PrintBb"
-            editable="true">
+      editable="true">
       <input_port name="bb">asdfasdf</input_port>
     </Action>
     <Action ID="PrintBody"
-            editable="true">
+      editable="true">
       <input_port name="body"
-                  default="abcdefg">body info</input_port>
+        default="abcdefg">body info</input_port>
     </Action>
   </TreeNodesModel>
 

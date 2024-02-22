@@ -19,6 +19,10 @@ pub struct Blackboard {
 }
 
 impl Blackboard {
+    pub fn extend_parent_remappings(&mut self, remappings: HashMap<String, String>) {
+        self.internal_to_external.write().extend(remappings);
+    }
+
     pub fn new_with_parent(parent_bb: &Arc<RwLock<Blackboard>>) -> Self {
         let parent_bb = Some(Arc::downgrade(parent_bb));
 
@@ -29,10 +33,30 @@ impl Blackboard {
     }
 
     pub fn get_entry(&self, key: &str) -> Option<Value> {
-        self.storage.read().get(key).cloned()
+        if let Some(v) = self.storage.read().get(key).cloned() {
+            Some(v)
+        } else {
+            let i_to_e_guard = self.internal_to_external.read();
+
+            let parent_key = if let Some(external_key) = i_to_e_guard.get(key) {
+                external_key
+            } else {
+                key
+            };
+
+            if let Some(parent_bb) = self.parent_bb.as_ref().and_then(|a| a.upgrade()) {
+                let value = parent_bb.read().get_entry(parent_key);
+
+                value
+            } else {
+                None
+            }
+        }
     }
 
     pub fn set(&mut self, key: String, value: Value) {
+        tracing::trace!("set blackboard: key= {key} value= {value:?}");
+
         self.storage.write().insert(key, value);
     }
 }

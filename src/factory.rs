@@ -12,7 +12,7 @@ use crate::{
         composite::{CompositeNodeImpl, CompositeWrapper, Parallel, Selector, Sequence},
         decorator::{
             DecoratorNodeImpl, DecoratorWrapper, ForceFailure, ForceSuccess, Inverter, Repeat,
-            Retry,
+            Retry, SubTree,
         },
     },
     BtError, NodeWrapper, TreeNode, TreeNodeWrapper,
@@ -24,13 +24,17 @@ use crate::{
 
 pub struct Factory {
     composite_tcs: HashMap<String, Box<dyn Fn(DataProxy, Attrs) -> CompositeWrapper>>,
-    decorator_tcs:
-        HashMap<String, Box<dyn Fn(DataProxy, Attrs, TreeNodeWrapper) -> DecoratorWrapper>>,
+    decorator_tcs: HashMap<
+        String,
+        Box<dyn Fn(DataProxy, Attrs, TreeNodeWrapper) -> OuterResult<DecoratorWrapper>>,
+    >,
     action_node_tcs:
         HashMap<ActionRegex, Box<dyn Fn(&str, DataProxy, Attrs) -> OuterResult<ActionWrapper>>>,
 }
 
 type Attrs = HashMap<String, String>;
+type OuterError = Box<dyn std::error::Error + Send + Sync>;
+type OuterResult<T> = std::result::Result<T, OuterError>;
 
 fn boxify_composite<T, F>(cons: F) -> Box<dyn Fn(DataProxy, Attrs) -> CompositeWrapper>
 where
@@ -46,14 +50,28 @@ where
 
 fn boxify_decorator<T, F>(
     cons: F,
-) -> Box<dyn Fn(DataProxy, Attrs, TreeNodeWrapper) -> DecoratorWrapper>
+) -> Box<dyn Fn(DataProxy, Attrs, TreeNodeWrapper) -> OuterResult<DecoratorWrapper>>
 where
-    F: 'static + Fn(&Attrs) -> T,
+    F: 'static + Fn(&Attrs) -> OuterResult<T>,
     T: 'static + DecoratorNodeImpl,
 {
     Box::new(move |data_proxy, attrs, inner_node| {
-        let node_wrapper = Box::new(cons(&attrs));
-        DecoratorWrapper::new(data_proxy, node_wrapper, inner_node)
+        let node_wrapper = Box::new(cons(&attrs)?);
+        Ok(DecoratorWrapper::new(data_proxy, node_wrapper, inner_node))
+    })
+}
+
+pub fn boxify_action<T, F>(
+    cons: F,
+) -> Box<dyn Fn(&str, DataProxy, Attrs) -> OuterResult<ActionWrapper>>
+where
+    F: 'static + Fn(&str, Attrs) -> OuterResult<T>,
+    T: 'static + ActionNodeImpl,
+{
+    Box::new(move |type_name, data_proxy, attrs| {
+        let res = cons(type_name, attrs)?;
+
+        Ok(ActionWrapper::new(data_proxy, Box::new(res)))
     })
 }
 
@@ -101,23 +119,6 @@ impl std::hash::Hash for ActionRegex {
     }
 }
 
-type OuterError = Box<dyn std::error::Error + Send + Sync>;
-type OuterResult<T> = std::result::Result<T, OuterError>;
-
-pub fn boxify_action<T, F>(
-    cons: F,
-) -> Box<dyn Fn(&str, DataProxy, Attrs) -> OuterResult<ActionWrapper>>
-where
-    F: 'static + Fn(&str, Attrs) -> OuterResult<T>,
-    T: 'static + ActionNodeImpl,
-{
-    Box::new(move |type_name, data_proxy, attrs| {
-        let res = cons(type_name, attrs)?;
-
-        Ok(ActionWrapper::new(data_proxy, Box::new(res)))
-    })
-}
-
 impl Factory {
     pub fn composite_types(&self) -> HashSet<&str> {
         self.composite_tcs.keys().map(|a| a.as_str()).collect()
@@ -138,7 +139,9 @@ impl Factory {
     fn register_decorator_type(
         &mut self,
         type_name: String,
-        constructor: Box<dyn Fn(DataProxy, Attrs, TreeNodeWrapper) -> DecoratorWrapper>,
+        constructor: Box<
+            dyn Fn(DataProxy, Attrs, TreeNodeWrapper) -> OuterResult<DecoratorWrapper>,
+        >,
     ) {
         self.decorator_tcs.insert(type_name, constructor);
     }
@@ -170,7 +173,13 @@ impl Factory {
     ) -> Option<DecoratorWrapper> {
         self.decorator_tcs
             .get(type_name)
-            .map(|c| c(data_proxy, attrs, node))
+            .and_then(|c| match c(data_proxy, attrs, node) {
+                Ok(v) => Some(v),
+                Err(e) => {
+                    tracing::error!("create {type_name} meet failure: err= {e}");
+                    None
+                }
+            })
     }
 
     pub fn build_action(
@@ -231,23 +240,33 @@ impl Default for Factory {
 
         fac.register_decorator_type(
             "ForceSuccess".to_string(),
-            boxify_decorator(|_| ForceSuccess::default()),
+            boxify_decorator(|_| Ok(ForceSuccess::default())),
         );
         fac.register_decorator_type(
             "ForceFailure".to_string(),
-            boxify_decorator(|_| ForceFailure::default()),
+            boxify_decorator(|_| Ok(ForceFailure::default())),
         );
         fac.register_decorator_type(
             "Inverter".to_string(),
-            boxify_decorator(|_| Inverter::default()),
+            boxify_decorator(|_| Ok(Inverter::default())),
         );
         fac.register_decorator_type(
             "Repeat".to_string(),
-            boxify_decorator(|_| Repeat::default()),
+            boxify_decorator(|_| Ok(Repeat::default())),
         );
         fac.register_decorator_type(
             "RetryUntilSuccessful".to_string(),
-            boxify_decorator(|_| Retry::default()),
+            boxify_decorator(|_| Ok(Retry::default())),
+        );
+        fac.register_decorator_type(
+            "SubTree".to_string(),
+            boxify_decorator(|attrs| {
+                let id = attrs
+                    .get("ID")
+                    .ok_or_else(|| BtError::Raw(format!("no id found in SubTree attributes")))?;
+
+                Ok(SubTree::new(id.to_string()))
+            }),
         );
 
         fac.register_action_node_type(
