@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::{NodeStatus, TreeNode, TreeNodeWrapper};
+use crate::{node::strip_ref_tag, NodeStatus, TreeNode, TreeNodeWrapper};
 
 use super::DataProxy;
 
@@ -45,6 +45,8 @@ impl ActionNodeImpl for SetBlackboard {
         let Some(value) = data_proxy.get_input::<String>("value") else {
             return NodeStatus::Failure;
         };
+
+        tracing::debug!("set value for key: key= {} value= {}", output_key, value);
 
         data_proxy.blackboard().set(output_key, json!(value));
 
