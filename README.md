@@ -22,7 +22,8 @@ Cornerstone is inspired by many other crates out there, here's a few worth menti
   - [x] SetBlackboard
 - Xml Parsing 
   - [x] Subtree
+  - [x] Ports remapping
 - Observe
   - [ ] record/replay
   - [ ] visualize
-  - [ ] user pause/resume
+  - [ ] ~~user pause/resume~~

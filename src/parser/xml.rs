@@ -68,6 +68,8 @@ fn create_tree_node_recursively(
     uid_generator: &AtomicU16,
 ) -> Result<Option<TreeNodeWrapper>> {
     tracing::trace!("input: {}", check_str);
+
+    tracing::debug!("input blackboard: {:?}", bb.read());
     let mut reader = Reader::from_str(check_str);
 
     let mut control_nodes = VecDeque::new();
@@ -128,28 +130,9 @@ fn create_tree_node_recursively(
                         let range = tree_ranges.get(tree_id).cloned().ok_or_else(|| {
                             BtError::Raw(format!("can't find range for tree: {tree_id}"))
                         })?;
-
-                        let event = reader.read_event();
-                        tracing::info!("inner event: {event:?}");
-
-                        // let event = reader.read_event();
-                        // tracing::info!("inner event: {event:?}");
-
-                        // reader.read_text(e.to_end().name())?;
-
                         (&original_tree_str[range], Arc::new(RwLock::new(subtree_bb)))
                     } else {
-                        let p = reader.buffer_position();
-                        tracing::info!("current position: {} s= {}", p, &check_str[p..p + 10]);
-                        let end = e.to_end();
-                        let end_name = end.name();
-                        tracing::info!("end name: {end:?}");
-                        let mut range = reader.read_to_end(end_name)?;
-
-                        let p2 = reader.buffer_position();
-                        tracing::info!("new position= {p2} range: {range:?}");
-                        // range.start += check_range.start;
-                        // range.end += check_range.end;
+                        let range = reader.read_to_end(e.to_end().name())?;
 
                         (&check_str[range], bb.clone())
                     };
@@ -161,14 +144,14 @@ fn create_tree_node_recursively(
                         original_tree_str,
                         subtree_check_str,
                         tree_ranges,
-                        bb.clone(),
+                        new_bb,
                         uid_generator,
                     )?
                     .ok_or_else(|| BtError::Raw("no subtree node created".to_string()))?;
-                    tracing::info!("get node: {}", node.node_info());
+                    tracing::debug!("get node: {}", node.node_info());
 
                     let Some(mut decorator_node) =
-                        factory.build_decorator(element_name, DataProxy::new(new_bb), kv, node)
+                        factory.build_decorator(element_name, DataProxy::new(bb.clone()), kv, node)
                     else {
                         tracing::warn!("can't create decorator node: element_name= {element_name}");
 
@@ -176,12 +159,7 @@ fn create_tree_node_recursively(
                     };
                     decorator_node.data_proxy.set_uid(uid);
 
-                    let mut node = TreeNodeWrapper::new(NodeWrapper::Decorator(decorator_node));
-
-                    for node in &control_nodes {
-                        tracing::info!("control node: {}", node.0.node_info());
-                    }
-
+                    let node = TreeNodeWrapper::new(NodeWrapper::Decorator(decorator_node));
                     if let Some((control_node, _)) = control_nodes.front_mut() {
                         control_node.add_child(node);
                     } else {
@@ -206,7 +184,7 @@ fn create_tree_node_recursively(
                     if let Some((control_node, _)) = control_nodes.front_mut() {
                         control_node.add_child(node);
                     } else {
-                        tracing::info!("return node: {}", node.node_info());
+                        tracing::debug!("return node: {}", node.node_info());
 
                         return Ok(Some(node));
                     }

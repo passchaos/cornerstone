@@ -32,7 +32,7 @@
         </Sequence>
         <PrintBody body="abcdefg" />
       </Fallback>
-      <SubTree ID="aaa" />
+      <SubTree ID="aaa" target_pose="{move_pose}"/>
       <Repeat num_cycles="10">
         <PrintBody body="aaa" />
       </Repeat>

@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use parking_lot::{RwLock, RwLockWriteGuard};
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use serde_json::Value;
 
 pub mod action;
@@ -18,9 +18,25 @@ pub struct Blackboard {
     internal_to_external: RwLock<HashMap<String, String>>,
 }
 
+impl std::fmt::Debug for Blackboard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Blackboard")
+            .field(
+                "parent_bb",
+                &self.parent_bb.as_ref().and_then(|pb| pb.upgrade()),
+            )
+            .field("internal_to_external", &self.internal_to_external)
+            .finish()
+    }
+}
+
 impl Blackboard {
     pub fn extend_parent_remappings(&mut self, remappings: HashMap<String, String>) {
         self.internal_to_external.write().extend(remappings);
+    }
+
+    pub fn port_remappings(&self) -> RwLockReadGuard<HashMap<String, String>> {
+        self.internal_to_external.read()
     }
 
     pub fn new_with_parent(parent_bb: &Arc<RwLock<Blackboard>>) -> Self {
