@@ -104,7 +104,7 @@ fn create_tree_node_recursively(
                     let uid = uid_generator.fetch_add(1, Ordering::SeqCst);
                     node.data_proxy.set_uid(uid);
 
-                    control_nodes.push_front((node, uid));
+                    control_nodes.push_front(node);
                 } else if factory.decorator_types().contains(element_name) {
                     tracing::trace!("decorator node");
 
@@ -172,7 +172,7 @@ fn create_tree_node_recursively(
                     decorator_node.data_proxy.set_uid(uid);
 
                     let node = TreeNodeWrapper::new(NodeWrapper::Decorator(decorator_node));
-                    if let Some((control_node, _)) = control_nodes.front_mut() {
+                    if let Some(control_node) = control_nodes.front_mut() {
                         control_node.add_child(node);
                     } else {
                         tracing::info!("return node: {}", node.node_info());
@@ -199,7 +199,7 @@ fn create_tree_node_recursively(
                     let uid = uid_generator.fetch_add(1, Ordering::SeqCst);
                     node.set_uid(uid);
 
-                    if let Some((control_node, _)) = control_nodes.front_mut() {
+                    if let Some(control_node) = control_nodes.front_mut() {
                         control_node.add_child(node);
                     } else {
                         tracing::debug!("return node: {}", node.node_info());
@@ -215,17 +215,17 @@ fn create_tree_node_recursively(
                 if factory.composite_types().contains(element_name) {
                     path_folders.pop();
 
-                    if let Some((control_node, uid)) = control_nodes.pop_front() {
-                        let mut control_node_wrapper =
+                    if let Some(control_node) = control_nodes.pop_front() {
+                        let control_node_wrapper =
                             TreeNodeWrapper::new(NodeWrapper::Composite(control_node));
 
-                        if let Some((parent_control_node, _)) = control_nodes.front_mut() {
+                        if let Some(parent_control_node) = control_nodes.front_mut() {
                             parent_control_node.add_child(control_node_wrapper);
                         } else {
                             return Ok(Some(control_node_wrapper));
                         }
                     } else {
-                        tracing::warn!("unexpected end: {element_name}");
+                        return Err(BtError::Raw(format!("unexpected end: {element_name}")));
                     }
                 }
             }
