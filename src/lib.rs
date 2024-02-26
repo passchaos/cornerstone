@@ -2,6 +2,7 @@ use std::{any::Any, collections::HashMap, str::FromStr};
 
 use node::{
     action::ActionWrapper, composite::CompositeWrapper, decorator::DecoratorWrapper, is_ref_key,
+    DataProxy,
 };
 use parking_lot::RwLock;
 use serde::Serialize;
@@ -63,26 +64,28 @@ impl TreeNodeWrapper {
         }
     }
 
-    pub fn uid(&self) -> u16 {
+    pub fn data_proxy_ref(&self) -> &DataProxy {
         match &self.node_wrapper {
-            NodeWrapper::Composite(cp) => cp.data_proxy.uid(),
-            NodeWrapper::Decorator(dr) => dr.data_proxy.uid(),
-            NodeWrapper::Action(at) => at.data_proxy.uid(),
+            NodeWrapper::Composite(cp) => &cp.data_proxy,
+            NodeWrapper::Decorator(dr) => &dr.data_proxy,
+            NodeWrapper::Action(at) => &at.data_proxy,
         }
     }
 
-    pub fn set_uid(&mut self, uid: u16) {
+    pub fn data_proxy_ref_mut(&mut self) -> &mut DataProxy {
         match &mut self.node_wrapper {
-            NodeWrapper::Composite(cp) => {
-                cp.data_proxy.set_uid(uid);
-            }
-            NodeWrapper::Decorator(dr) => {
-                dr.data_proxy.set_uid(uid);
-            }
-            NodeWrapper::Action(at) => {
-                at.data_proxy.set_uid(uid);
-            }
+            NodeWrapper::Composite(cp) => &mut cp.data_proxy,
+            NodeWrapper::Decorator(dr) => &mut dr.data_proxy,
+            NodeWrapper::Action(at) => &mut at.data_proxy,
         }
+    }
+
+    pub fn uid(&self) -> u16 {
+        self.data_proxy_ref().uid()
+    }
+
+    pub fn set_uid(&mut self, uid: u16) {
+        self.data_proxy_ref_mut().set_uid(uid);
     }
 
     pub fn node_info(&self) -> String {
@@ -92,7 +95,11 @@ impl TreeNodeWrapper {
             NodeWrapper::Action(tn) => tn.debug_info(),
         };
 
-        format!("uid= {} {a}", self.uid())
+        format!(
+            "uid= {} path= {} {a}",
+            self.uid(),
+            self.data_proxy_ref().path()
+        )
     }
 }
 

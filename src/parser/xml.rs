@@ -61,6 +61,7 @@ impl<'a> AttributesWrapper<'a> {
 // only the action nodes leaf nodes
 fn create_tree_node_recursively(
     factory: &Factory,
+    mut path_folders: Vec<String>,
     original_tree_str: &str,
     check_str: &str,
     tree_ranges: &HashMap<String, Range<usize>>,
@@ -88,7 +89,11 @@ fn create_tree_node_recursively(
                 if factory.composite_types().contains(element_name) {
                     tracing::trace!("composite node");
 
-                    let data_proxy = DataProxy::new(bb.clone());
+                    path_folders.push(element_name.to_string());
+
+                    let mut data_proxy = DataProxy::new(bb.clone());
+                    data_proxy.set_path(path_folders.join("/"));
+
                     let Some(mut node) =
                         factory.build_composite(element_name, data_proxy, wrapper.kv()?)
                     else {
@@ -139,8 +144,12 @@ fn create_tree_node_recursively(
 
                     let uid = uid_generator.fetch_add(1, Ordering::SeqCst);
 
+                    let mut subtree_path_folders = path_folders.clone();
+                    subtree_path_folders.push(element_name.to_string());
+
                     let node = create_tree_node_recursively(
                         factory,
+                        subtree_path_folders.clone(),
                         original_tree_str,
                         subtree_check_str,
                         tree_ranges,
@@ -150,8 +159,11 @@ fn create_tree_node_recursively(
                     .ok_or_else(|| BtError::Raw("no subtree node created".to_string()))?;
                     tracing::debug!("get node: {}", node.node_info());
 
+                    let mut data_proxy = DataProxy::new(bb.clone());
+                    data_proxy.set_path(subtree_path_folders.join("/"));
+
                     let Some(mut decorator_node) =
-                        factory.build_decorator(element_name, DataProxy::new(bb.clone()), kv, node)
+                        factory.build_decorator(element_name, data_proxy, kv, node)
                     else {
                         tracing::warn!("can't create decorator node: element_name= {element_name}");
 
@@ -169,7 +181,13 @@ fn create_tree_node_recursively(
                 } else {
                     tracing::trace!("leaf node: {element_name}");
 
-                    let data_proxy = DataProxy::new(bb.clone());
+                    let mut data_proxy = DataProxy::new(bb.clone());
+
+                    let mut path_folers_leaf = path_folders.clone();
+                    path_folers_leaf.push(element_name.to_string());
+
+                    data_proxy.set_path(path_folers_leaf.join("/"));
+
                     let Some(mut node) =
                         factory.build_action(element_name, data_proxy, wrapper.kv()?)
                     else {
@@ -195,6 +213,8 @@ fn create_tree_node_recursively(
                 let element_name = std::str::from_utf8(name.as_ref())?;
 
                 if factory.composite_types().contains(element_name) {
+                    path_folders.pop();
+
                     if let Some((control_node, uid)) = control_nodes.pop_front() {
                         let mut control_node_wrapper =
                             TreeNodeWrapper::new(NodeWrapper::Composite(control_node));
@@ -281,6 +301,7 @@ pub fn create_bt_tree_from_xml_str(factory: &Factory, s: &str) -> Result<Option<
 
     let node = create_tree_node_recursively(
         factory,
+        vec![],
         s,
         &s[main_tree_range],
         &tree_ranges,

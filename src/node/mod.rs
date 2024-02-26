@@ -82,6 +82,7 @@ pub struct DataProxy {
     bb: Arc<RwLock<Blackboard>>,
     input_ports: HashMap<String, String>,
     uid: u16,
+    path: String,
 }
 
 impl std::fmt::Debug for DataProxy {
@@ -101,6 +102,14 @@ pub fn strip_ref_tag(key: &str) -> String {
 }
 
 impl DataProxy {
+    pub fn set_path(&mut self, path: String) {
+        self.path = path;
+    }
+
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
     pub fn new(bb: Arc<RwLock<Blackboard>>) -> Self {
         Self::new_with_uid(0, bb, HashMap::new())
     }
@@ -114,6 +123,7 @@ impl DataProxy {
             bb,
             input_ports,
             uid,
+            path: String::new(),
         }
     }
 
