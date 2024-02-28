@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap, str::FromStr};
+use std::{any::Any, collections::HashMap, future::Future, str::FromStr};
 
 use node::{
     action::ActionWrapper, composite::CompositeWrapper, decorator::DecoratorWrapper, is_ref_key,
@@ -27,11 +27,19 @@ pub enum BtError {
     Raw(String),
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(Default, PartialEq, Eq, Debug, Clone, Copy)]
 pub enum NodeStatus {
+    #[default]
+    Idle,
     Success,
     Failure,
     Running,
+}
+
+impl NodeStatus {
+    pub fn is_completed(&self) -> bool {
+        self == &NodeStatus::Success || self == &NodeStatus::Failure
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -52,6 +60,14 @@ pub struct TreeNodeWrapper {
 }
 
 impl TreeNodeWrapper {
+    pub fn status(&self) -> NodeStatus {
+        self.data_proxy_ref().status()
+    }
+
+    pub fn reset_status(&mut self) {
+        self.data_proxy_ref_mut().reset_status();
+    }
+
     pub fn new(node_wrapper: NodeWrapper) -> Self {
         Self { node_wrapper }
     }
@@ -90,8 +106,8 @@ impl TreeNodeWrapper {
 
     pub fn node_info(&self) -> String {
         let a = match &self.node_wrapper {
-            NodeWrapper::Composite(cp) => cp.node_info(),
-            NodeWrapper::Decorator(dr) => dr.node_info(),
+            NodeWrapper::Composite(cp) => cp.debug_info(),
+            NodeWrapper::Decorator(dr) => dr.debug_info(),
             NodeWrapper::Action(tn) => tn.debug_info(),
         };
 
@@ -123,4 +139,5 @@ pub trait TreeNode: Any + Send {
     fn debug_info(&self) -> String {
         format!("Action {}", std::any::type_name::<Self>())
     }
+    fn halt(&mut self) {}
 }

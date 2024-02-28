@@ -13,6 +13,7 @@ pub trait CompositeNodeImpl: Send {
     fn node_info(&self) -> String {
         format!("{}", std::any::type_name::<Self>())
     }
+    fn reset_state(&mut self);
 }
 
 pub struct CompositeWrapper {
@@ -34,7 +35,36 @@ impl CompositeWrapper {
         self.child_nodes.push(node);
     }
 
-    pub fn node_info(&self) -> String {
+    pub fn reset_children(&mut self) {
+        for child_node in &mut self.child_nodes {
+            if child_node.status() == NodeStatus::Running {
+                child_node.halt();
+            }
+            child_node.reset_status();
+        }
+    }
+}
+
+impl TreeNode for CompositeWrapper {
+    fn tick(&mut self) -> NodeStatus {
+        if self.data_proxy.status == NodeStatus::Idle {
+            self.data_proxy.status = NodeStatus::Running;
+        }
+
+        let tick_status = self
+            .node_wrapper
+            .tick_status(&mut self.data_proxy, &mut self.child_nodes);
+
+        if tick_status.is_completed() {
+            self.halt();
+        }
+
+        self.data_proxy.status = tick_status;
+
+        tick_status
+    }
+
+    fn debug_info(&self) -> String {
         let node_wrapper_info = self.node_wrapper.node_info();
 
         let mut a = format!("Composite {node_wrapper_info}");
@@ -45,12 +75,11 @@ impl CompositeWrapper {
 
         a
     }
-}
 
-impl TreeNode for CompositeWrapper {
-    fn tick(&mut self) -> NodeStatus {
-        self.node_wrapper
-            .tick_status(&mut self.data_proxy, &mut self.child_nodes)
+    fn halt(&mut self) {
+        tracing::debug!("halt self: {}", self.debug_info());
+        self.node_wrapper.reset_state();
+        self.reset_children();
     }
 }
 
@@ -78,6 +107,7 @@ impl CompositeNodeImpl for Sequence {
                 NodeStatus::Success => {
                     self.current_child_idx += 1;
                 }
+                NodeStatus::Idle => return NodeStatus::Failure,
             }
         }
 
@@ -86,6 +116,10 @@ impl CompositeNodeImpl for Sequence {
 
     fn node_info(&self) -> String {
         format!("Sequence: current_child_idx= {}", self.current_child_idx)
+    }
+
+    fn reset_state(&mut self) {
+        self.current_child_idx = 0;
     }
 }
 
@@ -129,6 +163,7 @@ impl CompositeNodeImpl for Parallel {
             let node = &mut child_nodes[i];
 
             match node.tick() {
+                NodeStatus::Idle => return NodeStatus::Failure,
                 NodeStatus::Failure => {
                     self.failure_count += 1;
                 }
@@ -151,10 +186,16 @@ impl CompositeNodeImpl for Parallel {
 
         NodeStatus::Running
     }
+
+    fn reset_state(&mut self) {
+        std::mem::swap(self, &mut Self::default());
+    }
 }
 
 #[derive(Default)]
-pub struct Selector;
+pub struct Selector {
+    current_child_idx: usize,
+}
 
 impl CompositeNodeImpl for Selector {
     fn tick_status(
@@ -162,14 +203,24 @@ impl CompositeNodeImpl for Selector {
         data_proxy: &mut DataProxy,
         child_nodes: &mut Vec<TreeNodeWrapper>,
     ) -> NodeStatus {
-        for node in child_nodes.iter_mut() {
+        for node in child_nodes.iter_mut().skip(self.current_child_idx) {
             match node.tick() {
-                NodeStatus::Success => return NodeStatus::Success,
+                NodeStatus::Idle => return NodeStatus::Failure,
+                NodeStatus::Success => {
+                    self.reset_state();
+                    return NodeStatus::Success;
+                }
                 NodeStatus::Running => return NodeStatus::Running,
-                NodeStatus::Failure => (),
+                NodeStatus::Failure => {
+                    self.current_child_idx += 1;
+                }
             }
         }
 
         NodeStatus::Failure
+    }
+
+    fn reset_state(&mut self) {
+        std::mem::swap(self, &mut Self::default());
     }
 }

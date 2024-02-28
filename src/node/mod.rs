@@ -7,6 +7,8 @@ use std::{
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use serde_json::Value;
 
+use crate::NodeStatus;
+
 pub mod action;
 pub mod composite;
 pub mod decorator;
@@ -81,6 +83,7 @@ impl Blackboard {
 pub struct DataProxy {
     bb: Arc<RwLock<Blackboard>>,
     input_ports: HashMap<String, String>,
+    status: NodeStatus,
     uid: u16,
     path: String,
 }
@@ -122,6 +125,7 @@ impl DataProxy {
         Self {
             bb,
             input_ports,
+            status: NodeStatus::default(),
             uid,
             path: String::new(),
         }
@@ -162,5 +166,13 @@ impl DataProxy {
 
     pub fn blackboard(&self) -> RwLockWriteGuard<Blackboard> {
         self.bb.write()
+    }
+
+    pub fn reset_status(&mut self) {
+        self.status = NodeStatus::Idle;
+    }
+
+    pub fn status(&self) -> NodeStatus {
+        self.status
     }
 }

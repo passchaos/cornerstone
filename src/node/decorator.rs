@@ -13,6 +13,7 @@ pub trait DecoratorNodeImpl: Send {
     fn node_info(&self) -> String {
         format!("{}", std::any::type_name::<Self>())
     }
+    fn reset_state(&mut self) {}
 }
 
 pub struct DecoratorWrapper {
@@ -23,8 +24,35 @@ pub struct DecoratorWrapper {
 
 impl TreeNode for DecoratorWrapper {
     fn tick(&mut self) -> NodeStatus {
-        self.node_wrapper
-            .tick_status(&mut self.data_proxy, &mut self.inner_node)
+        if self.data_proxy.status == NodeStatus::Idle {
+            self.data_proxy.status = NodeStatus::Running;
+        }
+
+        let tick_status = self
+            .node_wrapper
+            .tick_status(&mut self.data_proxy, &mut self.inner_node);
+        if tick_status.is_completed() {
+            self.halt();
+        }
+
+        self.data_proxy.status = tick_status;
+
+        tick_status
+    }
+
+    fn debug_info(&self) -> String {
+        let s = format!("Decorator: {}", self.node_wrapper.node_info());
+
+        let inner_node_info = self.inner_node.node_info();
+
+        format!("{s} | inner= {inner_node_info}")
+    }
+
+    fn halt(&mut self) {
+        tracing::debug!("halt self: {}", self.debug_info());
+
+        self.node_wrapper.reset_state();
+        self.reset_inner();
     }
 }
 
@@ -41,12 +69,12 @@ impl DecoratorWrapper {
         }
     }
 
-    pub fn node_info(&self) -> String {
-        let s = format!("Decorator: {}", self.node_wrapper.node_info());
+    pub fn reset_inner(&mut self) {
+        if self.inner_node.status() == NodeStatus::Running {
+            self.inner_node.halt();
+        }
 
-        let inner_node_info = self.inner_node.node_info();
-
-        format!("{s} | inner= {inner_node_info}")
+        self.inner_node.reset_status();
     }
 }
 
@@ -95,6 +123,7 @@ impl DecoratorNodeImpl for Inverter {
             NodeStatus::Running => NodeStatus::Running,
             NodeStatus::Failure => NodeStatus::Success,
             NodeStatus::Success => NodeStatus::Failure,
+            NodeStatus::Idle => NodeStatus::Failure,
         }
     }
 }
@@ -133,6 +162,10 @@ impl DecoratorNodeImpl for Repeat {
             res => return res,
         }
     }
+
+    fn reset_state(&mut self) {
+        std::mem::swap(self, &mut Self::default());
+    }
 }
 
 #[derive(Default)]
@@ -150,6 +183,7 @@ impl DecoratorNodeImpl for Retry {
 
         while self.try_count <= num_attempts {
             match inner_node.tick() {
+                NodeStatus::Idle => return NodeStatus::Failure,
                 NodeStatus::Failure => {
                     self.try_count += 1;
                     continue;
@@ -160,6 +194,10 @@ impl DecoratorNodeImpl for Retry {
         }
 
         NodeStatus::Failure
+    }
+
+    fn reset_state(&mut self) {
+        std::mem::swap(self, &mut Self::default());
     }
 }
 
