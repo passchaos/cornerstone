@@ -132,6 +132,16 @@ impl TreeNode for TreeNodeWrapper {
             }
         }
     }
+
+    fn halt(&mut self) {
+        match &mut self.node_wrapper {
+            NodeWrapper::Composite(cp) => cp.halt(),
+            NodeWrapper::Decorator(dn) => dn.halt(),
+            NodeWrapper::Action(tn) => {
+                tn.halt();
+            }
+        }
+    }
 }
 
 pub trait TreeNode: Any + Send {

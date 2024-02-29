@@ -338,6 +338,10 @@ mod test {
             println!("body tick");
             NodeStatus::Success
         }
+
+        fn halt(&mut self) {
+            tracing::info!("halt print body action ========");
+        }
     }
 
     struct PrintArm;

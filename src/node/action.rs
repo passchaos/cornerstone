@@ -10,6 +10,8 @@ pub trait ActionNodeImpl: Send {
     fn node_info(&self) -> String {
         format!("{}", std::any::type_name::<Self>())
     }
+
+    fn halt(&mut self) {}
 }
 
 pub struct ActionWrapper {
@@ -24,6 +26,12 @@ impl TreeNode for ActionWrapper {
 
     fn debug_info(&self) -> String {
         format!("Action {}", self.node.node_info())
+    }
+
+    fn halt(&mut self) {
+        tracing::debug!("halt action: {}", self.debug_info());
+
+        self.node.halt();
     }
 }
 
