@@ -4,8 +4,10 @@ use std::{
     sync::{Arc, Weak},
 };
 
+use once_cell::sync::Lazy;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use serde_json::Value;
+use tokio::sync::{broadcast, watch};
 
 use crate::NodeStatus;
 
@@ -79,13 +81,21 @@ impl Blackboard {
     }
 }
 
-#[derive(Clone)]
+#[derive(Default, PartialEq, Eq, Debug, Clone, Copy)]
+pub struct StateNotif {
+    pub ts: i64,
+    pub uid: u16,
+    pub prev_status: NodeStatus,
+    pub new_status: NodeStatus,
+}
+
 pub struct DataProxy {
     bb: Arc<RwLock<Blackboard>>,
     input_ports: HashMap<String, String>,
     status: NodeStatus,
     uid: u16,
     path: String,
+    state_observer: watch::Sender<StateNotif>,
 }
 
 impl std::fmt::Debug for DataProxy {
@@ -122,12 +132,15 @@ impl DataProxy {
         bb: Arc<RwLock<Blackboard>>,
         input_ports: HashMap<String, String>,
     ) -> Self {
+        let (tx, _rx) = watch::channel(StateNotif::default());
+
         Self {
             bb,
             input_ports,
             status: NodeStatus::default(),
             uid,
             path: String::new(),
+            state_observer: tx,
         }
     }
 
@@ -168,8 +181,31 @@ impl DataProxy {
         self.bb.write()
     }
 
+    pub fn add_observer(&self) -> watch::Receiver<StateNotif> {
+        self.state_observer.subscribe()
+    }
+
     pub fn reset_status(&mut self) {
-        self.status = NodeStatus::Idle;
+        self.set_status(NodeStatus::Idle);
+    }
+
+    pub fn set_status(&mut self, new_status: NodeStatus) {
+        if new_status != self.status {
+            if self.state_observer.receiver_count() > 0 {
+                let notif = StateNotif {
+                    ts: chrono::Utc::now().timestamp_millis(),
+                    uid: self.uid,
+                    prev_status: self.status,
+                    new_status,
+                };
+
+                tracing::info!("send notif: {notif:?}");
+                if self.state_observer.send(notif).is_err() {
+                    tracing::warn!("all subscriber has closed");
+                }
+            }
+        }
+        self.status = new_status;
     }
 
     pub fn status(&self) -> NodeStatus {

@@ -24,8 +24,8 @@ pub struct DecoratorWrapper {
 
 impl TreeNode for DecoratorWrapper {
     fn tick(&mut self) -> NodeStatus {
-        if self.data_proxy.status == NodeStatus::Idle {
-            self.data_proxy.status = NodeStatus::Running;
+        if self.data_proxy.status() == NodeStatus::Idle {
+            self.data_proxy.set_status(NodeStatus::Running);
         }
 
         let tick_status = self
@@ -35,7 +35,7 @@ impl TreeNode for DecoratorWrapper {
             self.halt();
         }
 
-        self.data_proxy.status = tick_status;
+        self.data_proxy.set_status(tick_status);
 
         tick_status
     }

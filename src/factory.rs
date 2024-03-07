@@ -202,12 +202,11 @@ impl Factory {
 
         for (type_regex, constructor) in &self.action_node_tcs {
             if type_regex.is_match(type_name) {
-                let action_wrapper = match constructor(type_name, data_proxy.clone(), attrs.clone())
-                {
+                let action_wrapper = match constructor(type_name, data_proxy, attrs.clone()) {
                     Ok(n) => n,
                     Err(e) => {
                         tracing::error!("run action builder meet failure: err= {e}");
-                        continue;
+                        return None;
                     }
                 };
 

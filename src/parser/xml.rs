@@ -70,7 +70,7 @@ fn create_tree_node_recursively(
 ) -> Result<Option<TreeNodeWrapper>> {
     tracing::trace!("input: {}", check_str);
 
-    tracing::debug!("input blackboard: {:?}", bb.read());
+    tracing::trace!("input blackboard: {:?}", bb.read());
     let mut reader = Reader::from_str(check_str);
 
     let mut control_nodes = VecDeque::new();
@@ -315,6 +315,7 @@ pub fn create_bt_tree_from_xml_str(factory: &Factory, s: &str) -> Result<Option<
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
+    use std::time::Duration;
 
     use tracing::level_filters::LevelFilter;
     use tracing_subscriber::prelude::*;
@@ -386,8 +387,10 @@ mod test {
         </BehaviorTree>
     </root>"#;
 
-    #[test]
-    fn test_parse() {
+    #[tokio::test]
+    async fn test_parse() {
+        use tokio_stream::StreamExt;
+
         let fmt_layer = tracing_subscriber::fmt::Layer::new()
             .with_file(true)
             .with_line_number(true)
@@ -424,10 +427,22 @@ mod test {
         if let Some(mut node) = node {
             tracing::info!("node debug info: {}", node.node_info());
 
+            let rx = node.data_proxy_ref().add_observer();
+
+            tokio::spawn(async move {
+                let mut rx = tokio_stream::wrappers::WatchStream::new(rx);
+                tracing::info!("wait for notif");
+                while let Some(notif) = rx.next().await {
+                    tracing::info!("get notif: {notif:?}");
+                }
+            });
+
             if let NodeWrapper::Composite(cp) = &node.node_wrapper {
                 tracing::info!("composite note");
                 // tracing::info!("has control node: name= {}", control_node.debug_info());
             }
+
+            tokio::time::sleep(Duration::from_secs(2)).await;
 
             loop {
                 let res = node.tick();
@@ -435,7 +450,11 @@ mod test {
                 if res != NodeStatus::Running {
                     break;
                 }
+
+                tokio::time::sleep(Duration::from_millis(200)).await;
             }
+
+            tokio::time::sleep(Duration::from_secs(2)).await;
         }
     }
 }
