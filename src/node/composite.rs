@@ -19,7 +19,7 @@ pub trait CompositeNodeImpl: Send {
 pub struct CompositeWrapper {
     pub data_proxy: DataProxy,
     node_wrapper: Box<dyn CompositeNodeImpl>,
-    child_nodes: Vec<TreeNodeWrapper>,
+    pub child_nodes: Vec<TreeNodeWrapper>,
 }
 
 impl CompositeWrapper {

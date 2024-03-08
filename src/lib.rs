@@ -117,6 +117,22 @@ impl TreeNodeWrapper {
             self.data_proxy_ref().path()
         )
     }
+
+    pub fn apply_recursive_visitor(&mut self, visitor: &mut impl FnMut(&mut Self)) {
+        match &mut self.node_wrapper {
+            NodeWrapper::Composite(cp) => {
+                for child in &mut cp.child_nodes {
+                    child.apply_recursive_visitor(visitor);
+                }
+            }
+            NodeWrapper::Decorator(dn) => {
+                dn.inner_node.apply_recursive_visitor(visitor);
+            }
+            _ => {}
+        }
+
+        visitor(self);
+    }
 }
 
 impl TreeNode for TreeNodeWrapper {

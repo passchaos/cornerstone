@@ -427,16 +427,17 @@ mod test {
         if let Some(mut node) = node {
             tracing::info!("node debug info: {}", node.node_info());
 
-            let rx = node.data_proxy_ref().add_observer();
+            node.apply_recursive_visitor(&mut |node| {
+                let rx = node.data_proxy_ref().add_observer();
 
-            tokio::spawn(async move {
-                let mut rx = tokio_stream::wrappers::WatchStream::new(rx);
-                tracing::info!("wait for notif");
-                while let Some(notif) = rx.next().await {
-                    tracing::info!("get notif: {notif:?}");
-                }
+                tokio::spawn(async move {
+                    let mut rx = tokio_stream::wrappers::WatchStream::new(rx);
+                    tracing::info!("wait for notif");
+                    while let Some(notif) = rx.next().await {
+                        tracing::info!("get notif: {notif:?}");
+                    }
+                });
             });
-
             if let NodeWrapper::Composite(cp) = &node.node_wrapper {
                 tracing::info!("composite note");
                 // tracing::info!("has control node: name= {}", control_node.debug_info());
@@ -451,7 +452,7 @@ mod test {
                     break;
                 }
 
-                tokio::time::sleep(Duration::from_millis(200)).await;
+                tokio::time::sleep(Duration::from_millis(900)).await;
             }
 
             tokio::time::sleep(Duration::from_secs(2)).await;
