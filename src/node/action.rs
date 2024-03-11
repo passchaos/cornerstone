@@ -24,12 +24,8 @@ impl TreeNode for ActionWrapper {
         self.node.tick_status(&mut self.data_proxy)
     }
 
-    fn debug_info(&self) -> String {
-        format!("Action {}", self.node.node_info())
-    }
-
     fn halt(&mut self) {
-        tracing::debug!("halt action: {}", self.debug_info());
+        tracing::debug!("halt action: {}", std::any::type_name::<Self>());
 
         self.node.halt();
     }

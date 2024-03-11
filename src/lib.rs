@@ -105,33 +105,44 @@ impl TreeNodeWrapper {
     }
 
     pub fn node_info(&self) -> String {
-        let a = match &self.node_wrapper {
-            NodeWrapper::Composite(cp) => cp.debug_info(),
-            NodeWrapper::Decorator(dr) => dr.debug_info(),
-            NodeWrapper::Action(tn) => tn.debug_info(),
-        };
+        let mut info = String::new();
 
-        format!(
-            "uid= {} path= {} {a}",
-            self.uid(),
-            self.data_proxy_ref().path()
-        )
+        self.apply_recursive_visitor(&mut |node, layer| {
+            info.push_str("\n");
+
+            for _ in 0..layer {
+                info.push_str("\t");
+            }
+
+            info.push_str(&format!(
+                "uid= {} path= {}",
+                node.uid(),
+                node.data_proxy_ref().full_path()
+            ));
+        });
+
+        info
     }
 
-    pub fn apply_recursive_visitor(&mut self, visitor: &mut impl FnMut(&mut Self)) {
-        match &mut self.node_wrapper {
+    fn apply_recursive_visitor_impl(&self, layer: u16, visitor: &mut impl FnMut(&Self, u16)) {
+        visitor(self, layer);
+
+        match &self.node_wrapper {
             NodeWrapper::Composite(cp) => {
-                for child in &mut cp.child_nodes {
-                    child.apply_recursive_visitor(visitor);
+                for child in &cp.child_nodes {
+                    child.apply_recursive_visitor_impl(layer + 1, visitor);
                 }
             }
             NodeWrapper::Decorator(dn) => {
-                dn.inner_node.apply_recursive_visitor(visitor);
+                dn.inner_node
+                    .apply_recursive_visitor_impl(layer + 1, visitor);
             }
             _ => {}
         }
+    }
 
-        visitor(self);
+    pub fn apply_recursive_visitor(&self, visitor: &mut impl FnMut(&Self, u16)) {
+        self.apply_recursive_visitor_impl(0, visitor);
     }
 }
 
@@ -162,8 +173,5 @@ impl TreeNode for TreeNodeWrapper {
 
 pub trait TreeNode: Any + Send {
     fn tick(&mut self) -> NodeStatus;
-    fn debug_info(&self) -> String {
-        format!("Action {}", std::any::type_name::<Self>())
-    }
     fn halt(&mut self) {}
 }

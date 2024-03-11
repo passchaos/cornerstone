@@ -64,20 +64,8 @@ impl TreeNode for CompositeWrapper {
         tick_status
     }
 
-    fn debug_info(&self) -> String {
-        let node_wrapper_info = self.node_wrapper.node_info();
-
-        let mut a = format!("Composite {node_wrapper_info}");
-        for child_node in &self.child_nodes {
-            a.push_str("\n\t\t>>>");
-            a.push_str(&child_node.node_info());
-        }
-
-        a
-    }
-
     fn halt(&mut self) {
-        tracing::debug!("halt self: {}", self.debug_info());
+        tracing::debug!("halt self: {}", std::any::type_name::<Self>());
         self.node_wrapper.reset_state();
         self.reset_children();
     }

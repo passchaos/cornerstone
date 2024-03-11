@@ -40,16 +40,8 @@ impl TreeNode for DecoratorWrapper {
         tick_status
     }
 
-    fn debug_info(&self) -> String {
-        let s = format!("Decorator: {}", self.node_wrapper.node_info());
-
-        let inner_node_info = self.inner_node.node_info();
-
-        format!("{s} | inner= {inner_node_info}")
-    }
-
     fn halt(&mut self) {
-        tracing::debug!("halt self: {}", self.debug_info());
+        tracing::debug!("halt self: {}", std::any::type_name::<Self>());
 
         self.node_wrapper.reset_state();
         self.reset_inner();

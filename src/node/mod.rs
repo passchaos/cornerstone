@@ -94,7 +94,7 @@ pub struct DataProxy {
     input_ports: HashMap<String, String>,
     status: NodeStatus,
     uid: u16,
-    path: String,
+    full_path: String,
     state_observer: watch::Sender<StateNotif>,
 }
 
@@ -115,12 +115,16 @@ pub fn strip_ref_tag(key: &str) -> String {
 }
 
 impl DataProxy {
-    pub fn set_path(&mut self, path: String) {
-        self.path = path;
+    pub fn set_full_path(&mut self, full_path: String) {
+        self.full_path = full_path;
+    }
+
+    pub fn full_path(&self) -> &str {
+        &self.full_path
     }
 
     pub fn path(&self) -> &str {
-        &self.path
+        self.full_path.split("/").last().unwrap_or("unknown")
     }
 
     pub fn new(bb: Arc<RwLock<Blackboard>>) -> Self {
@@ -139,7 +143,7 @@ impl DataProxy {
             input_ports,
             status: NodeStatus::default(),
             uid,
-            path: String::new(),
+            full_path: String::new(),
             state_observer: tx,
         }
     }
@@ -199,7 +203,7 @@ impl DataProxy {
                     new_status,
                 };
 
-                tracing::info!("send notif: {notif:?}");
+                tracing::trace!("send notif: {notif:?}");
                 if self.state_observer.send(notif).is_err() {
                     tracing::warn!("all subscriber has closed");
                 }

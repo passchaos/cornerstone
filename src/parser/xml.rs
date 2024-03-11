@@ -92,7 +92,7 @@ fn create_tree_node_recursively(
                     path_folders.push(element_name.to_string());
 
                     let mut data_proxy = DataProxy::new(bb.clone());
-                    data_proxy.set_path(path_folders.join("/"));
+                    data_proxy.set_full_path(path_folders.join("/"));
 
                     let Some(mut node) =
                         factory.build_composite(element_name, data_proxy, wrapper.kv()?)
@@ -160,7 +160,7 @@ fn create_tree_node_recursively(
                     tracing::debug!("get node: {}", node.node_info());
 
                     let mut data_proxy = DataProxy::new(bb.clone());
-                    data_proxy.set_path(subtree_path_folders.join("/"));
+                    data_proxy.set_full_path(subtree_path_folders.join("/"));
 
                     let Some(mut decorator_node) =
                         factory.build_decorator(element_name, data_proxy, kv, node)
@@ -186,7 +186,7 @@ fn create_tree_node_recursively(
                     let mut path_folers_leaf = path_folders.clone();
                     path_folers_leaf.push(element_name.to_string());
 
-                    data_proxy.set_path(path_folers_leaf.join("/"));
+                    data_proxy.set_full_path(path_folers_leaf.join("/"));
 
                     let Some(mut node) =
                         factory.build_action(element_name, data_proxy, wrapper.kv()?)
@@ -321,6 +321,7 @@ mod test {
     use tracing_subscriber::prelude::*;
     use tracing_subscriber::EnvFilter;
 
+    use crate::node::StateNotif;
     use crate::{factory::boxify_action, node::action::ActionNodeImpl, NodeStatus};
 
     use super::*;
@@ -397,7 +398,7 @@ mod test {
             .with_thread_names(true);
 
         let env_filter = EnvFilter::builder()
-            .with_default_directive(LevelFilter::DEBUG.into())
+            .with_default_directive(LevelFilter::INFO.into())
             .from_env_lossy();
 
         tracing_subscriber::registry()
@@ -427,14 +428,15 @@ mod test {
         if let Some(mut node) = node {
             tracing::info!("node debug info: {}", node.node_info());
 
-            node.apply_recursive_visitor(&mut |node| {
+            node.apply_recursive_visitor(&mut |node, _layer| {
                 let rx = node.data_proxy_ref().add_observer();
 
                 tokio::spawn(async move {
                     let mut rx = tokio_stream::wrappers::WatchStream::new(rx);
-                    tracing::info!("wait for notif");
                     while let Some(notif) = rx.next().await {
-                        tracing::info!("get notif: {notif:?}");
+                        if notif != StateNotif::default() {
+                            tracing::info!("get notif: {notif:?}");
+                        }
                     }
                 });
             });
