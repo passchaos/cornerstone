@@ -104,6 +104,10 @@ impl TreeNodeWrapper {
         self.data_proxy_ref_mut().set_uid(uid);
     }
 
+    pub fn path(&self) -> &str {
+        self.data_proxy_ref().path()
+    }
+
     pub fn node_info(&self) -> String {
         let mut info = String::new();
 
@@ -122,6 +126,40 @@ impl TreeNodeWrapper {
         });
 
         info
+    }
+
+    pub fn dot_info(&self) -> String {
+        let mut dot_s = String::new();
+
+        dot_s.push_str("digraph G {");
+
+        Self::dot_info_construct(&mut dot_s, self, self);
+
+        dot_s.push_str("}");
+
+        dot_s
+    }
+
+    fn dot_info_construct(content: &mut String, node: &TreeNodeWrapper, parent: &TreeNodeWrapper) {
+        let p = format!("\"{}_{}\"", parent.uid(), parent.path());
+
+        let node_s = format!("\"{}_{}\"", node.uid(), node.path());
+
+        if p != node_s {
+            content.push_str(&format!("{} -> {};\n", p, node_s));
+        }
+
+        match &node.node_wrapper {
+            NodeWrapper::Action(at) => {}
+            NodeWrapper::Composite(cp) => {
+                for child_node in &cp.child_nodes {
+                    Self::dot_info_construct(content, child_node, node);
+                }
+            }
+            NodeWrapper::Decorator(dr) => {
+                Self::dot_info_construct(content, &dr.inner_node, node);
+            }
+        }
     }
 
     fn apply_recursive_visitor_impl(&self, layer: u16, visitor: &mut impl FnMut(&Self, u16)) {

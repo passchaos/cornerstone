@@ -427,6 +427,7 @@ mod test {
 
         if let Some(mut node) = node {
             tracing::info!("node debug info: {}", node.node_info());
+            tracing::info!("node dot info: {}", node.dot_info());
 
             node.apply_recursive_visitor(&mut |node, _layer| {
                 let rx = node.data_proxy_ref().add_observer();
