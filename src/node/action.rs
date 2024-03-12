@@ -21,7 +21,14 @@ pub struct ActionWrapper {
 
 impl TreeNode for ActionWrapper {
     fn tick(&mut self) -> NodeStatus {
-        self.node.tick_status(&mut self.data_proxy)
+        if self.data_proxy.status() == NodeStatus::Idle {
+            self.data_proxy.set_status(NodeStatus::Running);
+        }
+
+        let new_status = self.node.tick_status(&mut self.data_proxy);
+        self.data_proxy.set_status(new_status);
+
+        new_status
     }
 
     fn halt(&mut self) {

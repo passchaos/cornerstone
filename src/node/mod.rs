@@ -194,6 +194,13 @@ impl DataProxy {
     }
 
     pub fn set_status(&mut self, new_status: NodeStatus) {
+        tracing::trace!(
+            "set status: {} old= {:?} new= {:?}",
+            self.uid(),
+            self.status(),
+            new_status
+        );
+
         if new_status != self.status {
             if self.state_observer.receiver_count() > 0 {
                 let notif = StateNotif {

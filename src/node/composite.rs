@@ -37,6 +37,12 @@ impl CompositeWrapper {
 
     pub fn reset_children(&mut self) {
         for child_node in &mut self.child_nodes {
+            tracing::trace!(
+                "child node status: uid= {} {:?}",
+                child_node.uid(),
+                child_node.status()
+            );
+
             if child_node.status() == NodeStatus::Running {
                 child_node.halt();
             }

@@ -432,8 +432,11 @@ mod test {
             node.apply_recursive_visitor(&mut |node, _layer| {
                 let rx = node.data_proxy_ref().add_observer();
 
+                let uid = node.uid();
+
                 tokio::spawn(async move {
                     let mut rx = tokio_stream::wrappers::WatchStream::new(rx);
+
                     while let Some(notif) = rx.next().await {
                         if notif != StateNotif::default() {
                             tracing::info!("get notif: {notif:?}");
@@ -455,7 +458,7 @@ mod test {
                     break;
                 }
 
-                tokio::time::sleep(Duration::from_millis(900)).await;
+                tokio::time::sleep(Duration::from_secs(1)).await;
             }
 
             tokio::time::sleep(Duration::from_secs(2)).await;
