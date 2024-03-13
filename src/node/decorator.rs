@@ -1,10 +1,8 @@
-use std::collections::HashMap;
-
 use crate::{NodeStatus, TreeNode, TreeNodeWrapper};
 
 use super::DataProxy;
 
-pub trait DecoratorNodeImpl: Send {
+pub trait DecoratorNodeImpl: Send + Sync {
     fn tick_status(
         &mut self,
         data_proxy: &mut DataProxy,
@@ -76,7 +74,7 @@ pub struct ForceSuccess;
 impl DecoratorNodeImpl for ForceSuccess {
     fn tick_status(
         &mut self,
-        data_proxy: &mut DataProxy,
+        _data_proxy: &mut DataProxy,
         inner_node: &mut TreeNodeWrapper,
     ) -> NodeStatus {
         match inner_node.tick() {
@@ -92,7 +90,7 @@ pub struct ForceFailure;
 impl DecoratorNodeImpl for ForceFailure {
     fn tick_status(
         &mut self,
-        data_proxy: &mut DataProxy,
+        _data_proxy: &mut DataProxy,
         inner_node: &mut TreeNodeWrapper,
     ) -> NodeStatus {
         match inner_node.tick() {
@@ -108,7 +106,7 @@ pub struct Inverter;
 impl DecoratorNodeImpl for Inverter {
     fn tick_status(
         &mut self,
-        data_proxy: &mut DataProxy,
+        _data_proxy: &mut DataProxy,
         inner_node: &mut TreeNodeWrapper,
     ) -> NodeStatus {
         match inner_node.tick() {
@@ -196,19 +194,19 @@ impl DecoratorNodeImpl for Retry {
 pub const NUM_ATTEMPTS: &str = "num_attempts";
 
 pub struct SubTree {
-    id: String,
+    _id: String,
 }
 
 impl SubTree {
     pub fn new(id: String) -> Self {
-        Self { id }
+        Self { _id: id }
     }
 }
 
 impl DecoratorNodeImpl for SubTree {
     fn tick_status(
         &mut self,
-        data_proxy: &mut DataProxy,
+        _data_proxy: &mut DataProxy,
         inner_node: &mut TreeNodeWrapper,
     ) -> NodeStatus {
         inner_node.tick()

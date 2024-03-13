@@ -1,12 +1,8 @@
-use std::{any::Any, collections::HashMap, future::Future, str::FromStr};
+use std::any::Any;
 
 use node::{
-    action::ActionWrapper, composite::CompositeWrapper, decorator::DecoratorWrapper, is_ref_key,
-    DataProxy,
+    action::ActionWrapper, composite::CompositeWrapper, decorator::DecoratorWrapper, DataProxy,
 };
-use parking_lot::RwLock;
-use serde::Serialize;
-use serde_json::{json, Value};
 use thiserror::Error;
 
 pub mod factory;
@@ -150,7 +146,7 @@ impl TreeNodeWrapper {
         }
 
         match &node.node_wrapper {
-            NodeWrapper::Action(at) => {}
+            NodeWrapper::Action(_at) => {}
             NodeWrapper::Composite(cp) => {
                 for child_node in &cp.child_nodes {
                     Self::dot_info_construct(content, child_node, node);
@@ -209,7 +205,7 @@ impl TreeNode for TreeNodeWrapper {
     }
 }
 
-pub trait TreeNode: Any + Send {
+pub trait TreeNode: Any + Send + Sync {
     fn tick(&mut self) -> NodeStatus;
     fn halt(&mut self) {}
 }

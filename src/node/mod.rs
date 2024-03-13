@@ -4,10 +4,9 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use once_cell::sync::Lazy;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use serde_json::Value;
-use tokio::sync::{broadcast, watch};
+use tokio::sync::watch;
 
 use crate::NodeStatus;
 

@@ -1,10 +1,10 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use crate::{NodeStatus, TreeNode, TreeNodeWrapper};
 
 use super::DataProxy;
 
-pub trait CompositeNodeImpl: Send {
+pub trait CompositeNodeImpl: Send + Sync {
     fn tick_status(
         &mut self,
         data_proxy: &mut DataProxy,
@@ -85,7 +85,7 @@ pub struct Sequence {
 impl CompositeNodeImpl for Sequence {
     fn tick_status(
         &mut self,
-        data_proxy: &mut DataProxy,
+        _data_proxy: &mut DataProxy,
         child_nodes: &mut Vec<TreeNodeWrapper>,
     ) -> NodeStatus {
         let from = self.current_child_idx;
@@ -194,7 +194,7 @@ pub struct Selector {
 impl CompositeNodeImpl for Selector {
     fn tick_status(
         &mut self,
-        data_proxy: &mut DataProxy,
+        _data_proxy: &mut DataProxy,
         child_nodes: &mut Vec<TreeNodeWrapper>,
     ) -> NodeStatus {
         for node in child_nodes.iter_mut().skip(self.current_child_idx) {

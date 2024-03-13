@@ -336,7 +336,7 @@ mod test {
     struct PrintBody;
 
     impl ActionNodeImpl for PrintBody {
-        fn tick_status(&mut self, data_proxy: &mut DataProxy) -> NodeStatus {
+        fn tick_status(&mut self, _data_proxy: &mut DataProxy) -> NodeStatus {
             println!("body tick");
             NodeStatus::Success
         }
@@ -349,7 +349,7 @@ mod test {
     struct PrintArm;
 
     impl ActionNodeImpl for PrintArm {
-        fn tick_status(&mut self, data_proxy: &mut DataProxy) -> NodeStatus {
+        fn tick_status(&mut self, _data_proxy: &mut DataProxy) -> NodeStatus {
             println!("arm tick");
             NodeStatus::Success
         }
@@ -432,8 +432,6 @@ mod test {
             node.apply_recursive_visitor(&mut |node, _layer| {
                 let rx = node.data_proxy_ref().add_observer();
 
-                let uid = node.uid();
-
                 tokio::spawn(async move {
                     let mut rx = tokio_stream::wrappers::WatchStream::new(rx);
 
@@ -444,7 +442,7 @@ mod test {
                     }
                 });
             });
-            if let NodeWrapper::Composite(cp) = &node.node_wrapper {
+            if let NodeWrapper::Composite(_cp) = &node.node_wrapper {
                 tracing::info!("composite note");
                 // tracing::info!("has control node: name= {}", control_node.debug_info());
             }

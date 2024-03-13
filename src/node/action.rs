@@ -1,10 +1,10 @@
 use serde_json::json;
 
-use crate::{node::strip_ref_tag, NodeStatus, TreeNode, TreeNodeWrapper};
+use crate::{NodeStatus, TreeNode};
 
 use super::DataProxy;
 
-pub trait ActionNodeImpl: Send {
+pub trait ActionNodeImpl: Send + Sync {
     fn tick_status(&mut self, data_proxy: &mut DataProxy) -> NodeStatus;
 
     fn node_info(&self) -> String {

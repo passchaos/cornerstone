@@ -1,11 +1,11 @@
 use std::{
     collections::{HashMap, HashSet},
     ops::Deref,
-    sync::Arc,
 };
 
 use regex::Regex;
 
+use crate::node::DataProxy;
 use crate::{
     node::{
         action::{ActionNodeImpl, ActionWrapper, SetBlackboard},
@@ -15,11 +15,7 @@ use crate::{
             Retry, SubTree,
         },
     },
-    BtError, NodeWrapper, TreeNode, TreeNodeWrapper,
-};
-use crate::{
-    node::{Blackboard, DataProxy},
-    Result,
+    BtError, NodeWrapper, TreeNodeWrapper,
 };
 
 pub struct Factory {
