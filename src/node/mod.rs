@@ -106,11 +106,11 @@ impl std::fmt::Debug for DataProxy {
 }
 
 pub fn is_ref_key(key: &str) -> bool {
-    key.starts_with("{") && key.ends_with("}")
+    key.starts_with('{') && key.ends_with('}')
 }
 
 pub fn strip_ref_tag(key: &str) -> String {
-    key.replace("{", "").replace("}", "")
+    key.replace(['{', '}'], "")
 }
 
 impl DataProxy {
@@ -123,7 +123,7 @@ impl DataProxy {
     }
 
     pub fn path(&self) -> &str {
-        self.full_path.split("/").last().unwrap_or("unknown")
+        self.full_path.split('/').last().unwrap_or("unknown")
     }
 
     pub fn new(bb: Arc<RwLock<Blackboard>>) -> Self {
@@ -159,8 +159,8 @@ impl DataProxy {
             return None;
         };
 
-        if is_ref_key(&input_value_str) {
-            let stripped_key = strip_ref_tag(&input_value_str);
+        if is_ref_key(input_value_str) {
+            let stripped_key = strip_ref_tag(input_value_str);
 
             let Some(bb_value) = self.bb.read().get_entry(&stripped_key) else {
                 return None;
@@ -200,19 +200,17 @@ impl DataProxy {
             new_status
         );
 
-        if new_status != self.status {
-            if self.state_observer.receiver_count() > 0 {
-                let notif = StateNotif {
-                    ts: chrono::Utc::now().timestamp_millis(),
-                    uid: self.uid,
-                    prev_status: self.status,
-                    new_status,
-                };
+        if new_status != self.status && self.state_observer.receiver_count() > 0 {
+            let notif = StateNotif {
+                ts: chrono::Utc::now().timestamp_millis(),
+                uid: self.uid,
+                prev_status: self.status,
+                new_status,
+            };
 
-                tracing::trace!("send notif: {notif:?}");
-                if self.state_observer.send(notif).is_err() {
-                    tracing::warn!("all subscriber has closed");
-                }
+            tracing::trace!("send notif: {notif:?}");
+            if self.state_observer.send(notif).is_err() {
+                tracing::warn!("all subscriber has closed");
             }
         }
         self.status = new_status;

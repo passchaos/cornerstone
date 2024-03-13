@@ -9,7 +9,7 @@ pub trait DecoratorNodeImpl: Send + Sync {
         inner_node: &mut TreeNodeWrapper,
     ) -> NodeStatus;
     fn node_info(&self) -> String {
-        format!("{}", std::any::type_name::<Self>())
+        std::any::type_name::<Self>().to_string()
     }
     fn reset_state(&mut self) {}
 }
@@ -144,12 +144,12 @@ impl DecoratorNodeImpl for Repeat {
                 self.repeat_count += 1;
 
                 if self.repeat_count == num_cycles {
-                    return a;
+                    a
                 } else {
-                    return NodeStatus::Running;
+                    NodeStatus::Running
                 }
             }
-            res => return res,
+            res => res,
         }
     }
 

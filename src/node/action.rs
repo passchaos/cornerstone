@@ -8,7 +8,7 @@ pub trait ActionNodeImpl: Send + Sync {
     fn tick_status(&mut self, data_proxy: &mut DataProxy) -> NodeStatus;
 
     fn node_info(&self) -> String {
-        format!("{}", std::any::type_name::<Self>())
+        std::any::type_name::<Self>().to_string()
     }
 
     fn halt(&mut self) {}

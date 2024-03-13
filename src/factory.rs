@@ -18,14 +18,17 @@ use crate::{
     BtError, NodeWrapper, TreeNodeWrapper,
 };
 
+type Decoratortcs = HashMap<
+    String,
+    Box<dyn Fn(DataProxy, Attrs, TreeNodeWrapper) -> OuterResult<DecoratorWrapper>>,
+>;
+type ActionTcs =
+    HashMap<ActionRegex, Box<dyn Fn(&str, DataProxy, Attrs) -> OuterResult<ActionWrapper>>>;
+
 pub struct Factory {
     composite_tcs: HashMap<String, Box<dyn Fn(DataProxy, Attrs) -> CompositeWrapper>>,
-    decorator_tcs: HashMap<
-        String,
-        Box<dyn Fn(DataProxy, Attrs, TreeNodeWrapper) -> OuterResult<DecoratorWrapper>>,
-    >,
-    action_node_tcs:
-        HashMap<ActionRegex, Box<dyn Fn(&str, DataProxy, Attrs) -> OuterResult<ActionWrapper>>>,
+    decorator_tcs: Decoratortcs,
+    action_node_tcs: ActionTcs,
 }
 
 type Attrs = HashMap<String, String>;
@@ -57,9 +60,9 @@ where
     })
 }
 
-pub fn boxify_action<T, F>(
-    cons: F,
-) -> Box<dyn Fn(&str, DataProxy, Attrs) -> OuterResult<ActionWrapper>>
+type BoxActionCons = Box<dyn Fn(&str, DataProxy, Attrs) -> OuterResult<ActionWrapper>>;
+
+pub fn boxify_action<T, F>(cons: F) -> BoxActionCons
 where
     F: 'static + Fn(&str, Attrs) -> OuterResult<T>,
     T: 'static + ActionNodeImpl,
@@ -145,7 +148,7 @@ impl Factory {
     pub fn register_action_node_type(
         &mut self,
         type_name_pat: ActionRegex,
-        constructor: Box<dyn Fn(&str, DataProxy, Attrs) -> OuterResult<ActionWrapper>>,
+        constructor: BoxActionCons,
     ) {
         self.action_node_tcs.insert(type_name_pat, constructor);
     }
@@ -243,16 +246,13 @@ impl Default for Factory {
 
         fac.register_decorator_type(
             "ForceSuccess".to_string(),
-            boxify_decorator(|_| Ok(ForceSuccess::default())),
+            boxify_decorator(|_| Ok(ForceSuccess)),
         );
         fac.register_decorator_type(
             "ForceFailure".to_string(),
-            boxify_decorator(|_| Ok(ForceFailure::default())),
+            boxify_decorator(|_| Ok(ForceFailure)),
         );
-        fac.register_decorator_type(
-            "Inverter".to_string(),
-            boxify_decorator(|_| Ok(Inverter::default())),
-        );
+        fac.register_decorator_type("Inverter".to_string(), boxify_decorator(|_| Ok(Inverter)));
         fac.register_decorator_type(
             "Repeat".to_string(),
             boxify_decorator(|_| Ok(Repeat::default())),
@@ -266,7 +266,7 @@ impl Default for Factory {
             boxify_decorator(|attrs| {
                 let id = attrs
                     .get("ID")
-                    .ok_or_else(|| BtError::Raw(format!("no id found in SubTree attributes")))?;
+                    .ok_or_else(|| BtError::Raw("no id found in SubTree attributes".to_string()))?;
 
                 Ok(SubTree::new(id.to_string()))
             }),
@@ -274,7 +274,7 @@ impl Default for Factory {
 
         fac.register_action_node_type(
             "^SetBlackboard$".try_into().unwrap(),
-            boxify_action(|_, _| Ok(SetBlackboard::default())),
+            boxify_action(|_, _| Ok(SetBlackboard)),
         );
 
         fac

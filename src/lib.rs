@@ -108,10 +108,10 @@ impl TreeNodeWrapper {
         let mut info = String::new();
 
         self.apply_recursive_visitor(&mut |node, layer| {
-            info.push_str("\n");
+            info.push('\n');
 
             for _ in 0..layer {
-                info.push_str("\t");
+                info.push('\t');
             }
 
             info.push_str(&format!(
@@ -131,7 +131,7 @@ impl TreeNodeWrapper {
 
         Self::dot_info_construct(&mut dot_s, self, self);
 
-        dot_s.push_str("}");
+        dot_s.push('}');
 
         dot_s
     }

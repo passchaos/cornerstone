@@ -10,7 +10,7 @@ use std::{
 use crate::{
     factory::Factory,
     node::{strip_ref_tag, Blackboard, DataProxy},
-    BtError, NodeWrapper, Result, TreeNode, TreeNodeWrapper,
+    BtError, NodeWrapper, Result, TreeNodeWrapper,
 };
 use parking_lot::RwLock;
 use quick_xml::{
@@ -322,6 +322,7 @@ mod test {
     use tracing_subscriber::EnvFilter;
 
     use crate::node::StateNotif;
+    use crate::TreeNode;
     use crate::{factory::boxify_action, node::action::ActionNodeImpl, NodeStatus};
 
     use super::*;

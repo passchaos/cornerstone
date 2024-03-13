@@ -11,7 +11,7 @@ pub trait CompositeNodeImpl: Send + Sync {
         child_nodes: &mut Vec<TreeNodeWrapper>,
     ) -> NodeStatus;
     fn node_info(&self) -> String {
-        format!("{}", std::any::type_name::<Self>())
+        std::any::type_name::<Self>().to_string()
     }
     fn reset_state(&mut self);
 }
@@ -149,12 +149,10 @@ impl CompositeNodeImpl for Parallel {
             return NodeStatus::Failure;
         }
 
-        for i in 0..children_count {
+        for (i, node) in child_nodes.iter_mut().enumerate().take(children_count) {
             if self.completed_list.contains(&i) {
                 continue;
             }
-
-            let node = &mut child_nodes[i];
 
             match node.tick() {
                 NodeStatus::Idle => return NodeStatus::Failure,
